@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  job-scraper:
+    build: .
+    container_name: lokerscraper-surabaya
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - SCRAPE_INTERVAL_HOURS=6
+      - IT_KEYWORDS=developer,engineer,programmer,backend,frontend,fullstack,mobile,data,devops,qa,tester,web
+      - LOCATIONS=surabaya,sidoarjo,gresik,remote
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs

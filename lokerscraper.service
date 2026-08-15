@@ -1,0 +1,15 @@
+[Unit]
+Description=LokerScraper Surabaya Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/job-scraper
+ExecStart=/usr/bin/python3 api/app.py
+Restart=always
+RestartSec=10
+EnvironmentFile=/opt/job-scraper/.env
+
+[Install]
+WantedBy=multi-user.target
