@@ -43,24 +43,22 @@ class DiscordNotifier:
         job_type = job.get("type", "N/A")
         posted_at = format_date_id(job.get("posted_at", "N/A"))
 
-        # Single readable description block instead of 7 cramped inline fields.
-        description_lines = [
-            f"🏢 **{company}**",
-            f"📍 {location}",
-            f"💰 {salary}",
-            f"💼 {job_type} · {work_mode}",
-            f"🕒 {posted_at}",
-        ]
-        description = "\n".join(description_lines)
-
+        # 2 rows x 3 columns of inline fields, with emoji labels for readability.
         embed = {
             "title": title,
             "url": url if url else None,
-            "description": description,
             "color": color,
             "author": {
                 "name": f"{emoji} {source_label}",
             },
+            "fields": [
+                {"name": "🏢 Company", "value": company, "inline": True},
+                {"name": "💰 Salary", "value": salary, "inline": True},
+                {"name": "🕒 Posted", "value": posted_at, "inline": True},
+                {"name": "📍 Location", "value": location, "inline": True},
+                {"name": "💼 Type", "value": job_type, "inline": True},
+                {"name": "🔁 Mode", "value": work_mode, "inline": True},
+            ],
             "footer": {
                 "text": f"LokerScraper Surabaya"
             }
