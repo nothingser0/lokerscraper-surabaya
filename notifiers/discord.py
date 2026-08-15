@@ -16,14 +16,24 @@ COLOR_MAP = {
     "sejutacita": 0x00B894,
 }
 
+SOURCE_EMOJI = {
+    "kalibrr": "🟦",
+    "jobstreet": "🟪",
+    "glints": "🟥",
+    "linkedin": "🔷",
+    "sejutacita": "🟩",
+}
+
 class DiscordNotifier:
     def __init__(self, webhook_url: str = ""):
         self.webhook_url = webhook_url or config.DISCORD_WEBHOOK_URL
 
     def _job_to_embed(self, job: Dict[str, Any]) -> Dict[str, Any]:
         source = (job.get("source") or "unknown").lower()
+        source_label = job.get("source", "Unknown")
         color = COLOR_MAP.get(source, 0x7289DA)
-        
+        emoji = SOURCE_EMOJI.get(source, "🔹")
+
         title = job.get("title", "No Title")
         url = job.get("url", "")
         company = job.get("company", "Unknown")
@@ -33,21 +43,26 @@ class DiscordNotifier:
         job_type = job.get("type", "N/A")
         posted_at = format_date_id(job.get("posted_at", "N/A"))
 
+        # Single readable description block instead of 7 cramped inline fields.
+        description_lines = [
+            f"🏢 **{company}**",
+            f"📍 {location}",
+            f"💰 {salary}",
+            f"💼 {job_type} · {work_mode}",
+            f"🕒 {posted_at}",
+        ]
+        description = "\n".join(description_lines)
+
         embed = {
             "title": title,
             "url": url if url else None,
+            "description": description,
             "color": color,
-            "fields": [
-                {"name": "Company", "value": company, "inline": True},
-                {"name": "Location", "value": location, "inline": True},
-                {"name": "Salary", "value": salary, "inline": True},
-                {"name": "Work Mode", "value": work_mode, "inline": True},
-                {"name": "Job Type", "value": job_type, "inline": True},
-                {"name": "Posted Date", "value": posted_at, "inline": True},
-                {"name": "Source", "value": job.get("source", "Unknown"), "inline": True},
-            ],
+            "author": {
+                "name": f"{emoji} {source_label}",
+            },
             "footer": {
-                "text": f"LokerScraper Surabaya • {job.get('source', 'JobScraper')}"
+                "text": f"LokerScraper Surabaya"
             }
         }
         return {k: v for k, v in embed.items() if v is not None}
