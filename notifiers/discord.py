@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 import requests
 
 from config import config
-from utils.text import format_date_id, format_salary_id
+from utils.text import format_date_id, format_salary_id, format_job_type_id
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +24,24 @@ SOURCE_EMOJI = {
     "sejutacita": "🟩",
 }
 
+_FIELD_MAX_LEN = 28
+
+
+def _clip(value: str, max_len: int = _FIELD_MAX_LEN) -> str:
+    """Truncate long values so inline field boxes stay even."""
+    value = (value or "").strip()
+    if len(value) <= max_len:
+        return value
+    return value[: max_len - 1].rstrip() + "…"
+
+
 class DiscordNotifier:
     def __init__(self, webhook_url: str = ""):
         self.webhook_url = webhook_url or config.DISCORD_WEBHOOK_URL
 
     def _job_to_embed(self, job: Dict[str, Any]) -> Dict[str, Any]:
         source = (job.get("source") or "unknown").lower()
-        source_label = job.get("source", "Unknown")
+        source_label = job.get("source", "Unknown").capitalize()
         color = COLOR_MAP.get(source, 0x7289DA)
         emoji = SOURCE_EMOJI.get(source, "🔹")
 
@@ -40,10 +51,10 @@ class DiscordNotifier:
         location = job.get("location", "N/A")
         salary = format_salary_id(job.get("salary", "Not disclosed"))
         work_mode = job.get("work_mode", "N/A")
-        job_type = job.get("type", "N/A")
+        job_type = format_job_type_id(job.get("type", "N/A"))
         posted_at = format_date_id(job.get("posted_at", "N/A"))
 
-        # 2 rows x 3 columns of inline fields, with emoji labels for readability.
+        # 2 rows x 3 columns of inline fields, compact Indonesian labels.
         embed = {
             "title": title,
             "url": url if url else None,
@@ -52,12 +63,12 @@ class DiscordNotifier:
                 "name": f"{emoji} {source_label}",
             },
             "fields": [
-                {"name": "🏢 Company", "value": company, "inline": True},
-                {"name": "💰 Salary", "value": salary, "inline": True},
-                {"name": "🕒 Posted", "value": posted_at, "inline": True},
-                {"name": "📍 Location", "value": location, "inline": True},
-                {"name": "💼 Type", "value": job_type, "inline": True},
-                {"name": "🔁 Mode", "value": work_mode, "inline": True},
+                {"name": "Perusahaan", "value": _clip(company), "inline": True},
+                {"name": "Gaji", "value": _clip(salary), "inline": True},
+                {"name": "Tgl", "value": _clip(posted_at), "inline": True},
+                {"name": "Lokasi", "value": _clip(location), "inline": True},
+                {"name": "Tipe", "value": _clip(job_type), "inline": True},
+                {"name": "Mode", "value": _clip(work_mode), "inline": True},
             ],
             "footer": {
                 "text": f"LokerScraper Surabaya"

@@ -68,6 +68,47 @@ def format_date_id(value: Optional[str]) -> str:
     return value or "N/A"
 
 
+_JOB_TYPE_MAP = {
+    "full_time": "Full-time",
+    "fulltime": "Full-time",
+    "full time": "Full-time",
+    "part_time": "Part-time",
+    "parttime": "Part-time",
+    "part time": "Part-time",
+    "contract": "Contract",
+    "internship": "Internship",
+    "intern": "Internship",
+    "project_based": "Project-based",
+    "project based": "Project-based",
+    "freelance": "Freelance",
+    "temporary": "Temporary",
+    "permanent": "Permanent",
+    "remote": "Remote",
+    "hybrid": "Hybrid",
+    "onsite": "On-site",
+    "on_site": "On-site",
+}
+
+
+def format_job_type_id(value: Optional[str]) -> str:
+    """Normalize a job type string to a clean, human-readable label.
+
+    Examples:
+        ``FULL_TIME`` / ``Full time`` -> ``Full-time``
+        ``PART_TIME``                -> ``Part-time``
+        ``CONTRACT``                 -> ``Contract``
+        ``PROJECT_BASED``            -> ``Project-based``
+    """
+    if not value:
+        return "N/A"
+    text = sanitize_text(str(value)).strip()
+    if not text:
+        return "N/A"
+    key = text.replace("-", " ").replace("_", " ").lower()
+    key = _WS_RE.sub(" ", key).strip()
+    return _JOB_TYPE_MAP.get(key, text)
+
+
 def format_salary_id(value: Optional[str]) -> str:
     """Normalize a salary string into a readable Indonesian format.
 
