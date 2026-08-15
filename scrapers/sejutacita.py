@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 
 from config import config
 from scrapers.base import BaseScraper
-from utils.text import sanitize_text
+from utils.text import sanitize_text, format_salary_id
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,17 @@ class SejutaCitaScraper(BaseScraper):
                         location_str = str(city_data) if city_data else default_loc
 
                     salary_range = job.get("salaryRange")
-                    salary = str(salary_range) if salary_range else "Not disclosed"
+                    if isinstance(salary_range, dict):
+                        sal_min = salary_range.get("start") or salary_range.get("min") or salary_range.get("minimum")
+                        sal_max = salary_range.get("end") or salary_range.get("max") or salary_range.get("maximum")
+                        if sal_min or sal_max:
+                            salary = format_salary_id(f"{sal_min or ''} - {sal_max or ''}")
+                        else:
+                            salary = "Not disclosed"
+                    elif salary_range:
+                        salary = format_salary_id(salary_range)
+                    else:
+                        salary = "Not disclosed"
 
                     workplace_type = str(job.get("workplaceType") or "").lower()
                     if "remote" in workplace_type:

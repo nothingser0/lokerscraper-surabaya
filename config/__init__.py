@@ -23,6 +23,7 @@ class Config:
     TELEGRAM_BOT_TOKEN: str = field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN", ""))
     TELEGRAM_CHAT_ID: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_ID", ""))
     SCRAPE_INTERVAL_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_HOURS", "6")))
+    TRIGGER_TOKEN: str = field(default_factory=lambda: os.getenv("TRIGGER_TOKEN", ""))
     IT_KEYWORDS: List[str] = field(default_factory=lambda: [k.strip().lower() for k in os.getenv("IT_KEYWORDS", _default_keywords).split(",") if k.strip()])
     LOCATIONS: List[str] = field(default_factory=lambda: [l.strip().lower() for l in os.getenv("LOCATIONS", _default_locations).split(",") if l.strip()])
     
@@ -39,6 +40,7 @@ DISCORD_WEBHOOK_URL = config.DISCORD_WEBHOOK_URL
 TELEGRAM_BOT_TOKEN = config.TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID = config.TELEGRAM_CHAT_ID
 SCRAPE_INTERVAL_HOURS = config.SCRAPE_INTERVAL_HOURS
+TRIGGER_TOKEN = config.TRIGGER_TOKEN
 IT_KEYWORDS = config.IT_KEYWORDS
 LOCATIONS = config.LOCATIONS
 JOBS_FILE = config.JOBS_FILE

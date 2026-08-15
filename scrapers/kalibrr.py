@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 
 from config import config
 from scrapers.base import BaseScraper
-from utils.text import sanitize_text
+from utils.text import sanitize_text, format_salary_id
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ class KalibrrScraper(BaseScraper):
                         "title": sanitize_text(job_name_str or "Untitled"),
                         "company": sanitize_text(company_name),
                         "location": sanitize_text(location_str),
-                        "salary": self._format_salary(job.get("base_salary"), job.get("maximum_salary")),
+                        "salary": format_salary_id(self._format_salary(job.get("base_salary"), job.get("maximum_salary"))),
                         "type": sanitize_text(job_type),
                         "work_mode": self._get_work_mode(job),
                         "url": job_url,

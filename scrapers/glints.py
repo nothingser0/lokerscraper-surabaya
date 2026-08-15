@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 from config import config
 from scrapers.base import BaseScraper
-from utils.text import sanitize_text
+from utils.text import sanitize_text, format_salary_id
 
 logger = logging.getLogger(__name__)
 
@@ -109,13 +109,11 @@ class GlintsScraper(BaseScraper):
                     if isinstance(salaries, dict):
                         sal_min = salaries.get("minSalary") or salaries.get("min")
                         sal_max = salaries.get("maxSalary") or salaries.get("max")
-                        sal_curr = salaries.get("currencyCode") or salaries.get("currency") or "IDR"
-                        salary = f"{sal_curr} {sal_min} - {sal_max}" if sal_min or sal_max else "Not disclosed"
+                        salary = format_salary_id(f"{sal_min or ''} - {sal_max or ''}") if sal_min or sal_max else "Not disclosed"
                     elif isinstance(job.get("minSalary"), (int, float)) or isinstance(job.get("maxSalary"), (int, float)):
                         sal_min = job.get("minSalary")
                         sal_max = job.get("maxSalary")
-                        sal_curr = job.get("salariesCurrency") or "IDR"
-                        salary = f"{sal_curr} {sal_min} - {sal_max}"
+                        salary = format_salary_id(f"{sal_min or ''} - {sal_max or ''}")
                     else:
                         salary = "Not disclosed"
 

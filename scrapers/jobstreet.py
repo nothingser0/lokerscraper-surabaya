@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 
 from config import config
 from scrapers.base import BaseScraper
-from utils.text import sanitize_text
+from utils.text import sanitize_text, format_salary_id
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class JobStreetScraper(BaseScraper):
                             location_str = raw_loc
 
                     salary_raw = job.get("salaryLabel")
-                    salary = salary_raw if isinstance(salary_raw, str) and salary_raw else "Not disclosed"
+                    salary = format_salary_id(salary_raw) if isinstance(salary_raw, str) and salary_raw else "Not disclosed"
 
                     work_arrangements_obj = job.get("workArrangements")
                     work_arrangements = work_arrangements_obj.get("data", []) if isinstance(work_arrangements_obj, dict) else []

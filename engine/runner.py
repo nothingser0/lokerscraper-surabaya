@@ -43,8 +43,14 @@ class ScraperRunner:
             logger.error(f"Error running scraper {scraper_name}: {e}", exc_info=True)
             return []
 
-    def run_cycle(self) -> Dict[str, Any]:
-        """Run one scraping cycle across all scrapers in parallel."""
+    def run_cycle(self, force: bool = False) -> Dict[str, Any]:
+        """Run one scraping cycle across all scrapers in parallel.
+
+        Args:
+            force: When True, send the freshly filtered jobs to Discord even if
+                they were already seen (useful for on-demand testing). Normal
+                dedup/storage still applies.
+        """
         storage = StorageService()
         raw_jobs: List[Dict[str, Any]] = []
 
@@ -82,6 +88,11 @@ class ScraperRunner:
             storage.save_jobs(updated_jobs)
             storage.save_seen_ids(updated_seen_ids)
             notify_new_jobs(new_jobs)
+
+        if force:
+            # Send the freshly filtered batch to Discord even if nothing was new,
+            # so the notification path can be verified on demand.
+            notify_new_jobs(filtered_jobs)
 
         try:
             storage.cleanup_old_jobs()

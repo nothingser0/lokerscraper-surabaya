@@ -1,4 +1,20 @@
 import logging
+import sys
+import threading
+from pathlib import Path
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+
+# Ensure the project root is on sys.path so that `python api/app.py`
+# (used by Docker CMD, systemd ExecStart, and local dev) can resolve
+# sibling top-level packages: config, storage, engine, scrapers, notifiers.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 from flask import Flask, request, jsonify
@@ -38,6 +54,34 @@ def health_check():
         "status": "ok",
         "timestamp": datetime.now(timezone.utc).isoformat()
     })
+
+def _run_scrape_async(force: bool = False):
+    """Run a scrape cycle in a background thread (for manual trigger)."""
+    try:
+        runner = ScraperRunner()
+        result = runner.run_cycle(force=force)
+        logger.info(f"Manual scrape cycle finished: {result.get('new_jobs_count', 0)} new jobs found.")
+    except Exception as e:
+        logger.error(f"Error in manual scrape cycle: {e}", exc_info=True)
+
+@app.route("/api/trigger", methods=["POST"])
+def trigger_scrape():
+    """Manually trigger a scrape cycle without waiting for the scheduler.
+
+    Add `?force=true` to also send the freshly fetched batch to Discord even if
+    no new jobs were found (useful for testing the notification path).
+    """
+    if getattr(config, "TRIGGER_TOKEN", "") and request.headers.get("X-Trigger-Token") != config.TRIGGER_TOKEN:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    force = request.args.get("force", "").strip().lower() in ("1", "true", "yes")
+    thread = threading.Thread(target=_run_scrape_async, kwargs={"force": force}, daemon=True)
+    thread.start()
+    return jsonify({
+        "status": "started",
+        "message": "Scrape cycle started in background",
+        "force": force,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }), 202
 
 @app.route("/api/stats", methods=["GET"])
 def get_stats():
@@ -123,4 +167,5 @@ def get_jobs():
     })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    from waitress import serve
+    serve(app, host="0.0.0.0", port=5000, threads=8)

@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 import requests
 
 from config import config
+from utils.text import format_date_id, format_salary_id
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +28,10 @@ class DiscordNotifier:
         url = job.get("url", "")
         company = job.get("company", "Unknown")
         location = job.get("location", "N/A")
-        salary = job.get("salary", "Not disclosed")
+        salary = format_salary_id(job.get("salary", "Not disclosed"))
         work_mode = job.get("work_mode", "N/A")
         job_type = job.get("type", "N/A")
-        posted_at = job.get("posted_at", "N/A")
+        posted_at = format_date_id(job.get("posted_at", "N/A"))
 
         embed = {
             "title": title,
@@ -80,9 +81,13 @@ class DiscordNotifier:
         return False
 
     def send_jobs(self, jobs: List[Dict[str, Any]]) -> bool:
-        if not self.webhook_url or not jobs:
+        if not self.webhook_url:
+            logger.warning("Discord webhook URL is empty; skipping notification.")
+            return False
+        if not jobs:
             return False
 
+        logger.info(f"Sending {len(jobs)} job(s) to Discord in batches of 10.")
         success = True
         batch_size = 10
         for i in range(0, len(jobs), batch_size):
@@ -91,4 +96,6 @@ class DiscordNotifier:
             payload = {"embeds": embeds}
             if not self._send_payload(payload):
                 success = False
+        if success:
+            logger.info(f"Discord notification sent successfully for {len(jobs)} job(s).")
         return success

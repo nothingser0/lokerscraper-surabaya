@@ -73,34 +73,63 @@ API runs on `http://localhost:5000`.
 
 ```bash
 # 1. Clone repo
-git clone https://github.com/nothingser0/lokerscraper-surabaya.git /opt/job-scraper
-cd /opt/job-scraper
+git clone https://github.com/nothingser0/lokerscraper-surabaya.git
+cd lokerscraper-surabaya
 
 # 2. Setup environment
 cp .env.example .env
-nano .env  # Add DISCORD_WEBHOOK_URL
+nano .env  # Add DISCORD_WEBHOOK_URL (and optionally TRIGGER_TOKEN)
 
-# 3. Start container
-docker-compose up -d --build
+# 3. Build & start container (detached)
+docker compose up -d --build
+
+# 4. Verify it is running
+docker compose ps
+docker compose logs -f job-scraper
 ```
+
+The API is exposed on port `5000` of the host. Confirm with:
+
+```bash
+curl http://localhost:5000/health
+```
+
+> **Note:** Use `docker compose` (v2). If your system only has the legacy
+> `docker-compose` (v1) binary, replace `docker compose` with `docker-compose`.
 
 ### Option B: Native Systemd Service (Low RAM <50MB)
 
+On Debian/Armbian the system Python is often "externally managed", so install
+dependencies into a virtualenv instead of using bare `pip3`:
+
 ```bash
 # 1. Clone repo
-git clone https://github.com/nothingser0/lokerscraper-surabaya.git /opt/job-scraper
-cd /opt/job-scraper
+git clone https://github.com/nothingser0/lokerscraper-surabaya.git
+cd lokerscraper-surabaya
 
-# 2. Install requirements & configure .env
-pip3 install -r requirements.txt
+# 2. Create a virtualenv and install dependencies
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Configure environment
 cp .env.example .env
-nano .env
+nano .env  # Add DISCORD_WEBHOOK_URL
 
-# 3. Enable Systemd Service
-cp lokerscraper.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now lokerscraper
+# 4. Install & enable the systemd service
+#    (edit lokerscraper.service first if your WorkingDirectory differs)
+sudo cp lokerscraper.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now lokerscraper
+
+# 5. Verify
+sudo systemctl status lokerscraper
+curl http://localhost:5000/health
 ```
+
+> **Note:** `lokerscraper.service` points `WorkingDirectory` and `ExecStart` at
+> the install path. Update both to match your actual clone location (e.g. a USB
+> mount such as `/media/devmon/sda1-usb-SanDisk_Cruzer_B/job-scraper`).
 
 ---
 
@@ -147,6 +176,61 @@ GET /api/jobs?keyword=developer&source=JobStreet&limit=20&offset=0
 - `days` (optional): Filter jobs scraped within last N days (default: `30`).
 - `limit` (optional): Page size limit (default: `20`).
 - `offset` (optional): Pagination offset (default: `0`).
+
+### 4. Manually Trigger a Scrape
+The scraper normally runs automatically on startup and then every
+`SCRAPE_INTERVAL_HOURS`. To run a cycle on demand (for testing), POST to the
+trigger endpoint:
+
+```http
+POST /api/trigger
+```
+
+**Response (202 Accepted):**
+```json
+{
+  "status": "started",
+  "message": "Scrape cycle started in background",
+  "timestamp": "2026-08-15T17:00:00Z"
+}
+```
+
+The scrape runs in a background thread, so the endpoint returns immediately.
+Watch the logs to see the result (new jobs found, Discord messages sent, etc.).
+
+> **Optional protection:** set `TRIGGER_TOKEN` in `.env` to require the header
+> `X-Trigger-Token: <your-token>` on this endpoint. If empty, the endpoint is
+> unauthenticated.
+
+---
+
+## 🧪 Testing the Trigger
+
+### Quick test (cURL)
+
+```bash
+# 1. Trigger a scrape cycle
+curl -X POST http://localhost:5000/api/trigger
+
+# 2. Watch the container/service logs for progress
+docker compose logs -f job-scraper          # Docker
+# or
+sudo journalctl -u lokerscraper -f          # systemd
+
+# 3. After a few seconds, confirm results via the API
+curl http://localhost:5000/api/stats
+```
+
+If `TRIGGER_TOKEN` is set, include the header:
+
+```bash
+curl -X POST -H "X-Trigger-Token: YOUR_TOKEN" http://localhost:5000/api/trigger
+```
+
+**What to look for in the logs:**
+- `Starting scraper: <ScraperName>` / `Finished <ScraperName>: fetched N jobs`
+- `Manual scrape cycle finished: X new jobs found.`
+- Discord webhook success (or errors) when new jobs are found.
 
 ---
 
