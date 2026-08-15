@@ -2,7 +2,7 @@ import hashlib
 from typing import List, Set, Tuple, Dict, Any
 
 def generate_job_id(source: str, raw_identifier: str) -> str:
-    """Generates deterministic unique hash ID if missing: f"{source.lower()}_{md5(source+raw_identifier)[:12]}"."""
+    """Generate deterministic unique hash ID for a job."""
     src = (source or "unknown").lower()
     raw = str(raw_identifier or "")
     combined = f"{src}{raw}".encode("utf-8")
@@ -19,8 +19,7 @@ class Deduplicator:
         return deduplicate_jobs(jobs, seen_ids)
 
 def deduplicate_jobs(jobs: List[Dict[str, Any]], seen_ids: Set[str]) -> Tuple[List[Dict[str, Any]], Set[str]]:
-    """Deduplicates jobs based on job 'id' or generated ID against seen_ids and within current batch.
-    Returns (new_jobs, updated_seen_ids)."""
+    """Deduplicate jobs against seen_ids and within the current batch."""
     updated_seen = set(seen_ids)
     new_jobs = []
 

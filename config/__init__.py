@@ -4,16 +4,13 @@ from pathlib import Path
 from typing import List
 from dotenv import load_dotenv
 
-# Path setups
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 LOGS_DIR = BASE_DIR / "logs"
 
-# Ensure directories exist
 DATA_DIR.mkdir(exist_ok=True)
 LOGS_DIR.mkdir(exist_ok=True)
 
-# Load .env file
 env_path = BASE_DIR / ".env"
 load_dotenv(dotenv_path=env_path)
 
@@ -38,7 +35,6 @@ class Config:
 
 config = Config()
 
-# Export variables for direct module-level import as well
 DISCORD_WEBHOOK_URL = config.DISCORD_WEBHOOK_URL
 TELEGRAM_BOT_TOKEN = config.TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID = config.TELEGRAM_CHAT_ID

@@ -1,13 +1,12 @@
-import hashlib
 import json
 import logging
-import requests
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 
 from config import config
 from scrapers.base import BaseScraper
+from utils.text import sanitize_text
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,8 @@ class GlintsScraper(BaseScraper):
         script = soup.find("script", id="__NEXT_DATA__")
         if script and script.string:
             try:
-                return json.loads(script.string)
+                res = json.loads(script.string)
+                return res if isinstance(res, dict) else {}
             except Exception as e:
                 logger.error(f"Failed to parse __NEXT_DATA__ JSON in Glints: {e}")
         return {}
@@ -38,57 +38,73 @@ class GlintsScraper(BaseScraper):
     def fetch_jobs(self) -> List[Dict[str, Any]]:
         scraped_jobs: List[Dict[str, Any]] = []
         seen_job_ids = set()
+        default_loc = config.LOCATIONS[0] if config.LOCATIONS else "Surabaya"
 
         for kw in config.IT_KEYWORDS:
             params = {
                 "keyword": kw,
                 "country": "ID",
-                "locationName": "Surabaya"
+                "locationName": default_loc
             }
             try:
-                response = requests.get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
+                response = self.session.get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
                 if response.status_code != 200:
                     logger.warning(f"Glints returned status {response.status_code} for keyword {kw}")
                     continue
 
                 next_data = self._extract_next_data(response.text)
-                props = next_data.get("props", {}).get("pageProps", {})
+                props = next_data.get("props") if isinstance(next_data, dict) else {}
+                page_props = props.get("pageProps") if isinstance(props, dict) else {}
 
-                initial_jobs = props.get("initialJobs", {})
-                jobs_data = (
-                    initial_jobs.get("jobsInPage", []) if isinstance(initial_jobs, dict) else (
-                        initial_jobs if isinstance(initial_jobs, list) else []
-                    )
-                )
+                jobs_data = []
+                if isinstance(page_props, dict):
+                    initial_jobs = page_props.get("initialJobs")
+                    if isinstance(initial_jobs, dict):
+                        jobs_data = initial_jobs.get("jobsInPage", [])
+                    elif isinstance(initial_jobs, list):
+                        jobs_data = initial_jobs
 
-                if not jobs_data:
-                    # Alternative structure checks
-                    jobs_data = (
-                        props.get("initialState", {}).get("jobs", {}).get("data", []) or
-                        props.get("jobs", []) or
-                        props.get("data", {}).get("jobs", [])
-                    )
+                    if not jobs_data:
+                        init_state = page_props.get("initialState")
+                        if isinstance(init_state, dict):
+                            jobs_obj = init_state.get("jobs")
+                            if isinstance(jobs_obj, dict):
+                                jobs_data = jobs_obj.get("data", [])
+                        if not jobs_data:
+                            jobs_data = page_props.get("jobs", [])
+                        if not jobs_data:
+                            data_obj = page_props.get("data")
+                            if isinstance(data_obj, dict):
+                                jobs_data = data_obj.get("jobs", [])
+
+                if not isinstance(jobs_data, list):
+                    continue
 
                 for job in jobs_data:
                     if not isinstance(job, dict):
                         continue
 
-                    raw_id = str(job.get("id", ""))
+                    raw_id = str(job.get("id") or "")
                     if not raw_id or raw_id in seen_job_ids:
                         continue
 
-                    title = job.get("title", "Untitled")
+                    title_raw = job.get("title")
+                    title = title_raw if isinstance(title_raw, str) else "Untitled"
 
-                    company_info = job.get("company", {}) or job.get("Company", {})
-                    company = company_info.get("name", "Unknown") if isinstance(company_info, dict) else "Unknown"
-
-                    location_info = job.get("location", {}) or job.get("city", {})
-                    if isinstance(location_info, dict):
-                        location_str = location_info.get("name") or location_info.get("formattedName") or "Surabaya"
+                    company_info = job.get("company") or job.get("Company")
+                    if isinstance(company_info, dict):
+                        comp_name = company_info.get("name")
+                        company = comp_name if isinstance(comp_name, str) else "Unknown"
                     else:
-                        location_str = str(location_info) if location_info else "Surabaya"
+                        company = "Unknown"
 
-                    # Salary
+                    location_info = job.get("location") or job.get("city")
+                    if isinstance(location_info, dict):
+                        loc_name = location_info.get("name") or location_info.get("formattedName")
+                        location_str = loc_name if isinstance(loc_name, str) else default_loc
+                    else:
+                        location_str = str(location_info) if location_info else default_loc
+
                     salaries = job.get("salaries")
                     if isinstance(salaries, dict):
                         sal_min = salaries.get("minSalary") or salaries.get("min")
@@ -103,7 +119,6 @@ class GlintsScraper(BaseScraper):
                     else:
                         salary = "Not disclosed"
 
-                    # Work Mode
                     arrangement = str(job.get("workArrangementOption") or job.get("workMode") or "").upper()
                     if "REMOTE" in arrangement or job.get("isRemote"):
                         work_mode = "Remote"
@@ -114,19 +129,21 @@ class GlintsScraper(BaseScraper):
 
                     job_url = f"https://glints.com/id/opportunities/jobs/{raw_id}"
 
-                    created_at = job.get("createdAt") or job.get("updatedAt") or ""
-                    posted_at = created_at[:10] if len(created_at) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                    created_at = job.get("createdAt") or job.get("updatedAt")
+                    created_at_str = created_at if isinstance(created_at, str) else ""
+                    posted_at = created_at_str[:10] if len(created_at_str) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-                    md5_hash = hashlib.md5(raw_id.encode("utf-8")).hexdigest()
-                    job_hash_id = f"glints_{md5_hash}"
+                    job_type = job.get("type")
+                    type_str = job_type if isinstance(job_type, str) and job_type else "Full-time"
 
                     item = {
-                        "id": job_hash_id,
+                        "raw_id": raw_id,
                         "source": self.source_name,
-                        "title": title,
-                        "company": company,
-                        "location": location_str,
-                        "salary": salary,
+                        "title": sanitize_text(title),
+                        "company": sanitize_text(company),
+                        "location": sanitize_text(location_str),
+                        "salary": sanitize_text(salary),
+                        "type": sanitize_text(type_str),
                         "work_mode": work_mode,
                         "url": job_url,
                         "posted_at": posted_at,

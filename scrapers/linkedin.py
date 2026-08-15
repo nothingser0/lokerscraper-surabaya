@@ -1,13 +1,12 @@
-import hashlib
 import logging
 import re
-import requests
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 
 from config import config
 from scrapers.base import BaseScraper
+from utils.text import sanitize_text
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +27,16 @@ class LinkedInScraper(BaseScraper):
     def fetch_jobs(self) -> List[Dict[str, Any]]:
         scraped_jobs: List[Dict[str, Any]] = []
         seen_job_ids = set()
+        default_loc = config.LOCATIONS[0] if config.LOCATIONS else "Surabaya"
 
         for kw in config.IT_KEYWORDS:
             params = {
                 "keywords": kw,
-                "location": "Surabaya",
+                "location": default_loc,
                 "start": 0
             }
             try:
-                response = requests.get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
+                response = self.session.get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
                 if response.status_code != 200:
                     logger.warning(f"LinkedIn returned status {response.status_code} for keyword {kw}")
                     continue
@@ -45,7 +45,6 @@ class LinkedInScraper(BaseScraper):
                 job_cards = soup.find_all("li")
 
                 for card in job_cards:
-                    # Extract raw job ID
                     entity_urn = card.find("div", {"data-entity-urn": True})
                     raw_id = None
                     if entity_urn:
@@ -64,25 +63,20 @@ class LinkedInScraper(BaseScraper):
                     if not raw_id or raw_id in seen_job_ids:
                         continue
 
-                    # Title
                     title_el = card.find("h3", class_=re.compile(r"base-search-card__title|job-search-card__title"))
                     title = title_el.get_text(strip=True) if title_el else "Untitled"
 
-                    # Company
                     company_el = card.find("h4", class_=re.compile(r"base-search-card__subtitle|job-search-card__subtitle"))
                     if not company_el:
                         company_el = card.find("a", class_=re.compile(r"hidden-nested-link"))
                     company = company_el.get_text(strip=True) if company_el else "Unknown"
 
-                    # Location
                     loc_el = card.find("span", class_=re.compile(r"job-search-card__location"))
-                    location_str = loc_el.get_text(strip=True) if loc_el else "Surabaya"
+                    location_str = loc_el.get_text(strip=True) if loc_el else default_loc
 
-                    # URL
                     url_el = card.find("a", class_=re.compile(r"base-card__full-link|job-search-card__link"))
                     job_url = url_el.get("href").split("?")[0] if url_el and url_el.get("href") else f"https://www.linkedin.com/jobs/view/{raw_id}"
 
-                    # Posted Date
                     time_el = card.find("time")
                     posted_at = ""
                     if time_el and time_el.get("datetime"):
@@ -95,7 +89,6 @@ class LinkedInScraper(BaseScraper):
                     else:
                         posted_at = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-                    # Work Mode (Inferred from title / location if present)
                     title_lower = title.lower()
                     if "remote" in title_lower:
                         work_mode = "Remote"
@@ -104,17 +97,14 @@ class LinkedInScraper(BaseScraper):
                     else:
                         work_mode = "On-site"
 
-                    # Hash ID: linkedin_{md5}
-                    md5_hash = hashlib.md5(str(raw_id).encode("utf-8")).hexdigest()
-                    job_hash_id = f"linkedin_{md5_hash}"
-
                     item = {
-                        "id": job_hash_id,
+                        "raw_id": str(raw_id),
                         "source": self.source_name,
-                        "title": title,
-                        "company": company,
-                        "location": location_str,
+                        "title": sanitize_text(title),
+                        "company": sanitize_text(company),
+                        "location": sanitize_text(location_str),
                         "salary": "Not disclosed",
+                        "type": "Full-time",
                         "work_mode": work_mode,
                         "url": job_url,
                         "posted_at": posted_at,

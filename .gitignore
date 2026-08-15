@@ -4,6 +4,7 @@ planning/
 .omo/
 .codegraph/
 .opencode/
+.sisyphus/
 
 # Python
 __pycache__/

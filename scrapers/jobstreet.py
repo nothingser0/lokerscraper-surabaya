@@ -1,11 +1,10 @@
-import hashlib
 import logging
-import requests
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 from config import config
 from scrapers.base import BaseScraper
+from utils.text import sanitize_text
 
 logger = logging.getLogger(__name__)
 
@@ -25,74 +24,89 @@ class JobStreetScraper(BaseScraper):
     def fetch_jobs(self) -> List[Dict[str, Any]]:
         scraped_jobs: List[Dict[str, Any]] = []
         seen_job_ids = set()
+        default_loc = config.LOCATIONS[0] if config.LOCATIONS else "Surabaya"
 
         for kw in config.IT_KEYWORDS:
             params = {
                 "siteKey": "ID-Main",
                 "sourcesystem": "chalice",
-                "where": "Surabaya",
+                "where": default_loc,
                 "pageSize": 20,
                 "keywords": kw,
             }
             try:
-                response = requests.get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
+                response = self.session.get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
                 if response.status_code != 200:
                     logger.warning(f"JobStreet returned status {response.status_code} for keyword {kw}")
                     continue
 
                 data = response.json()
-                job_list = data.get("data", [])
+                job_list = data.get("data", []) if isinstance(data, dict) else []
+                if not isinstance(job_list, list):
+                    continue
 
                 for job in job_list:
-                    raw_id = str(job.get("id", ""))
+                    if not isinstance(job, dict):
+                        continue
+
+                    raw_id = str(job.get("id") or "")
                     if not raw_id or raw_id in seen_job_ids:
                         continue
 
-                    title = job.get("title", "Untitled")
+                    raw_title = job.get("title")
+                    title = raw_title if isinstance(raw_title, str) else "Untitled"
 
-                    # Advertiser / Company
-                    advertiser = job.get("advertiser", {})
-                    company = advertiser.get("description", "Unknown") if isinstance(advertiser, dict) else "Unknown"
-
-                    # Locations
-                    locations = job.get("locations", [])
-                    if locations and isinstance(locations, list) and isinstance(locations[0], dict):
-                        location_str = locations[0].get("label", "Surabaya")
+                    advertiser = job.get("advertiser")
+                    if isinstance(advertiser, dict):
+                        raw_company = advertiser.get("description")
+                        company = raw_company if isinstance(raw_company, str) else "Unknown"
                     else:
-                        location_str = "Surabaya"
+                        company = "Unknown"
 
-                    # Salary
-                    salary = job.get("salaryLabel") or "Not disclosed"
+                    locations = job.get("locations")
+                    location_str = default_loc
+                    if isinstance(locations, list) and locations and isinstance(locations[0], dict):
+                        raw_loc = locations[0].get("label")
+                        if isinstance(raw_loc, str) and raw_loc:
+                            location_str = raw_loc
 
-                    # Work Mode / Arrangement
-                    work_arrangements = job.get("workArrangements", {}).get("data", []) if isinstance(job.get("workArrangements"), dict) else []
+                    salary_raw = job.get("salaryLabel")
+                    salary = salary_raw if isinstance(salary_raw, str) and salary_raw else "Not disclosed"
+
+                    work_arrangements_obj = job.get("workArrangements")
+                    work_arrangements = work_arrangements_obj.get("data", []) if isinstance(work_arrangements_obj, dict) else []
                     work_mode = "On-site"
-                    if work_arrangements:
-                        arr_labels = [arr.get("label", {}).get("text", "") if isinstance(arr.get("label"), dict) else str(arr.get("label")) for arr in work_arrangements]
+                    if isinstance(work_arrangements, list) and work_arrangements:
+                        arr_labels = []
+                        for arr in work_arrangements:
+                            if isinstance(arr, dict):
+                                lbl = arr.get("label")
+                                if isinstance(lbl, dict):
+                                    text = lbl.get("text")
+                                    if isinstance(text, str):
+                                        arr_labels.append(text)
+                                elif isinstance(lbl, str):
+                                    arr_labels.append(lbl)
                         arr_str = " ".join(arr_labels).lower()
                         if "remote" in arr_str:
                             work_mode = "Remote"
                         elif "hybrid" in arr_str:
                             work_mode = "Hybrid"
 
-                    # Job URL
                     job_url = f"https://id.jobstreet.com/job/{raw_id}"
 
-                    # Posted Date
-                    listing_date = job.get("listingDate", "")
-                    posted_at = listing_date[:10] if len(listing_date) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-                    # Hash ID: jobstreet_{md5}
-                    md5_hash = hashlib.md5(raw_id.encode("utf-8")).hexdigest()
-                    job_hash_id = f"jobstreet_{md5_hash}"
+                    listing_date = job.get("listingDate")
+                    listing_date_str = listing_date if isinstance(listing_date, str) else ""
+                    posted_at = listing_date_str[:10] if len(listing_date_str) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
                     item = {
-                        "id": job_hash_id,
+                        "raw_id": raw_id,
                         "source": self.source_name,
-                        "title": title,
-                        "company": company,
-                        "location": location_str,
-                        "salary": salary,
+                        "title": sanitize_text(title),
+                        "company": sanitize_text(company),
+                        "location": sanitize_text(location_str),
+                        "salary": sanitize_text(salary),
+                        "type": "Full-time",
                         "work_mode": work_mode,
                         "url": job_url,
                         "posted_at": posted_at,
