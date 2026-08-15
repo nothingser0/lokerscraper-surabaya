@@ -87,6 +87,7 @@ class SejutaCitaScraper(BaseScraper):
 
                     item = {
                         "id": job_hash_id,
+                        "source": self.source_name,
                         "title": title,
                         "company": company,
                         "location": location_str,
