@@ -32,7 +32,10 @@ SOURCE_EMOJI = {
 }
 
 _FIELD_MAX_LEN = 28
-_FIELD_MAX_LEN_LONG = 900
+_FIELD_MAX_LEN_LONG = 500
+# Discord caps a single message's total embed size at 6000 characters. Keep
+# batches small and descriptions modest so a batch never exceeds the cap.
+_BATCH_SIZE = 3
 
 
 def _clip(value: str, max_len: int = _FIELD_MAX_LEN) -> str:
@@ -157,9 +160,9 @@ class DiscordNotifier:
         if not jobs:
             return False
 
-        logger.info(f"Sending {len(jobs)} job(s) to Discord in batches of 10.")
+        logger.info(f"Sending {len(jobs)} job(s) to Discord in batches of {_BATCH_SIZE}.")
         success = True
-        batch_size = 10
+        batch_size = _BATCH_SIZE
         for i in range(0, len(jobs), batch_size):
             batch = jobs[i:i + batch_size]
             embeds = [self._job_to_embed(j) for j in batch]
