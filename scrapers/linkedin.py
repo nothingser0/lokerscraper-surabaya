@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from bs4 import BeautifulSoup
@@ -20,8 +21,10 @@ class LinkedInScraper(BaseScraper):
     def __init__(self):
         super().__init__()
         # LinkedIn aggressively rate-limits unauthenticated requests (429).
-        # Space out keyword + detail requests to stay under the threshold.
-        self.request_delay = 3.0
+        # Space out keyword + detail requests generously to stay under the
+        # threshold, and back off hard when a 429 does occur.
+        self.request_delay = 30.0
+        self._rate_limit_backoff = 120.0
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -83,14 +86,22 @@ class LinkedInScraper(BaseScraper):
             }
             try:
                 response = self._get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
+
+                # On a 429, wait out LinkedIn's cooldown then retry once before
+                # giving up on this cycle. This trades time for stability.
+                if response.status_code == 429:
+                    logger.warning(
+                        f"LinkedIn returned 429 for keyword {kw}; backing off "
+                        f"{self._rate_limit_backoff:.0f}s then retrying once."
+                    )
+                    time.sleep(self._rate_limit_backoff)
+                    response = self._get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
+                    if response.status_code == 429:
+                        logger.warning("LinkedIn still rate-limited after backoff; stopping this cycle.")
+                        break
+
                 if response.status_code != 200:
                     logger.warning(f"LinkedIn returned status {response.status_code} for keyword {kw}")
-                    # LinkedIn blocks unauthenticated clients for several minutes
-                    # once a 429 hits. Stop early instead of hammering every
-                    # remaining keyword (which would all 429 too).
-                    if response.status_code == 429:
-                        logger.warning("LinkedIn rate-limited; stopping further keyword requests this cycle.")
-                        break
                     continue
 
                 soup = BeautifulSoup(response.text, "html.parser")

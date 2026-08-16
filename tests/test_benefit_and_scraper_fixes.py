@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from utils.text import (
@@ -207,7 +209,8 @@ class TestBaseScraperSessionAndThrottle:
             assert retry.respect_retry_after_header is True
 
     def test_throttle_sleeps_when_delay_set(self, monkeypatch):
-        """_throttle should sleep when request_delay > 0 and calls are back-to-back."""
+        """_throttle should sleep when request_delay > 0 and the prior request
+        finished less than request_delay seconds ago (timestamp set in _get)."""
         calls = []
 
         def fake_sleep(sec):
@@ -216,9 +219,11 @@ class TestBaseScraperSessionAndThrottle:
         monkeypatch.setattr("time.sleep", fake_sleep)
         a = _DummyScraper()
         a.request_delay = 1.0
-        a._throttle()  # first call: no sleep (no prior request)
+        a._throttle()  # first call: no prior request -> no sleep
         assert calls == []
-        a._throttle()  # immediate second call: must sleep ~1s
+        # Simulate a request completing now, then an immediate throttle call.
+        a._last_request_ts = time.monotonic()
+        a._throttle()
         assert len(calls) == 1
         assert calls[0] > 0
 

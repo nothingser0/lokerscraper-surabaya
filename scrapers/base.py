@@ -83,19 +83,28 @@ class BaseScraper(ABC):
         return self._session
 
     def _throttle(self) -> None:
-        """Enforce `request_delay` between requests to avoid rate-limiting."""
+        """Enforce `request_delay` between requests to avoid rate-limiting.
+
+        The delay is measured from the END of the previous request (we update
+        `_last_request_ts` only after the response arrives), so a long-running
+        request does not eat into the next request's required delay.
+        """
         if self.request_delay <= 0:
             return
         elapsed = time.monotonic() - self._last_request_ts
         wait = self.request_delay - elapsed
         if wait > 0:
             time.sleep(wait)
-        self._last_request_ts = time.monotonic()
 
     def _get(self, url: str, **kwargs) -> requests.Response:
         """Throttled GET wrapper so every scraper request respects request_delay."""
         self._throttle()
-        return self.session.get(url, **kwargs)
+        try:
+            return self.session.get(url, **kwargs)
+        finally:
+            # Record the time AFTER the request completes so the next call's
+            # delay is measured from the true end of this request.
+            self._last_request_ts = time.monotonic()
 
     @abstractmethod
     def fetch_jobs(self) -> List[Dict[str, Any]]:
