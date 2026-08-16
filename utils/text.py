@@ -627,6 +627,53 @@ def clean_description(text: Optional[str]) -> str:
     return _normalize_description(text)
 
 
+def draftjs_to_text(raw: Any) -> Optional[str]:
+    """Convert a Draft.js `descriptionRaw` payload (Glints) into multi-line text.
+
+    Glints stores job descriptions as Draft.js content state:
+        {"blocks": [{"text": "...", "type": "unstyled" | "unordered-list-item" | ...}]}
+
+    Empty blocks separate paragraphs; list-item blocks become "• " bullets.
+    Returns None when the payload has no extractable text.
+    """
+    if not isinstance(raw, dict):
+        return None
+    blocks = raw.get("blocks")
+    if not isinstance(blocks, list) or not blocks:
+        return None
+
+    lines: list = []
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        text = block.get("text")
+        if not isinstance(text, str):
+            text = ""
+        text = text.strip()
+        btype = str(block.get("type") or "unstyled").lower()
+
+        if btype in ("unordered-list-item", "ordered-list-item"):
+            if text:
+                lines.append(f"• {text}")
+        elif btype.startswith("header"):
+            if text:
+                lines.append(text)
+                lines.append("")
+        else:
+            # "unstyled" or unknown: paragraph. Empty text = paragraph break.
+            if text:
+                lines.append(text)
+            elif lines and lines[-1] != "":
+                lines.append("")
+
+    # Collapse trailing blank lines.
+    while lines and lines[-1] == "":
+        lines.pop()
+
+    result = "\n".join(lines).strip()
+    return result or None
+
+
 def format_description_id(description: Optional[str], max_len: int = 500) -> str:
     """Translate (opt-in) and neatly format a job description for Discord.
 

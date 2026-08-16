@@ -9,6 +9,7 @@ from scrapers.base import BaseScraper, new_job_dict
 from utils.text import (
     sanitize_text,
     clean_description,
+    draftjs_to_text,
     format_job_type_id,
     decode_glints_education,
 )
@@ -30,6 +31,33 @@ class GlintsScraper(BaseScraper):
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         }
+
+    def _fetch_job_detail(self, raw_id: str) -> Dict[str, Any]:
+        """Fetch the full job description from Glints' JSON detail endpoint.
+
+        The list endpoint (`initialJobs`) only exposes title/skills/salary; the
+        full body lives behind `https://glints.com/api/jobs/{id}` as a Draft.js
+        `descriptionRaw` payload. Convert that into multi-line text.
+        """
+        url = f"https://glints.com/api/jobs/{raw_id}"
+        details: Dict[str, Any] = {
+            "job_description": None,
+            "qualifications": None,
+        }
+        try:
+            resp = self._get(url, headers=self.headers, timeout=10)
+            if resp.status_code != 200:
+                return details
+            data = resp.json()
+            if not isinstance(data, dict):
+                return details
+            job = data.get("data")
+            if not isinstance(job, dict):
+                return details
+            details["job_description"] = draftjs_to_text(job.get("descriptionRaw"))
+        except Exception as e:
+            logger.debug(f"Glints detail fetch skipped for {raw_id}: {e}")
+        return details
 
     def _extract_next_data(self, html_content: str) -> Dict[str, Any]:
         soup = BeautifulSoup(html_content, "html.parser")
@@ -186,8 +214,16 @@ class GlintsScraper(BaseScraper):
                             experience = f"hingga {max_exp} tahun"
 
                     education = decode_glints_education(job.get("educationLevel"))
+
+                    # List endpoint has no body; fetch the full description from
+                    # the JSON detail endpoint when available.
                     job_desc = clean_description(job.get("description")) or None
                     qualifications = clean_description(job.get("requirements")) or None
+                    detail = self._fetch_job_detail(raw_id)
+                    if detail.get("job_description"):
+                        job_desc = detail["job_description"]
+                    if detail.get("qualifications"):
+                        qualifications = detail["qualifications"]
 
                     benefits_raw = job.get("benefits")
                     benefits = [sanitize_text(str(benefits_raw))] if benefits_raw else None

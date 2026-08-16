@@ -308,3 +308,39 @@ class TestCleanDescription:
         from utils.text import clean_description
         assert clean_description(None) == ""
 
+
+class TestDraftjsToText:
+    def test_unstyled_and_list_items_become_multiline(self):
+        from utils.text import draftjs_to_text
+        raw = {
+            "blocks": [
+                {"text": "Responsibilities:", "type": "unstyled"},
+                {"text": "", "type": "unstyled"},
+                {"text": "Build CI/CD", "type": "unordered-list-item"},
+                {"text": "Manage cloud", "type": "unordered-list-item"},
+            ]
+        }
+        out = draftjs_to_text(raw)
+        assert out is not None
+        assert "Responsibilities:" in out
+        assert "• Build CI/CD" in out
+        assert "• Manage cloud" in out
+        assert "\n" in out
+
+    def test_empty_blocks_separate_paragraphs(self):
+        from utils.text import draftjs_to_text
+        raw = {"blocks": [
+            {"text": "Para one", "type": "unstyled"},
+            {"text": "", "type": "unstyled"},
+            {"text": "Para two", "type": "unstyled"},
+        ]}
+        out = draftjs_to_text(raw)
+        assert out is not None
+        assert "Para one\n\nPara two" in out
+
+    def test_invalid_returns_none(self):
+        from utils.text import draftjs_to_text
+        assert draftjs_to_text(None) is None
+        assert draftjs_to_text({}) is None
+        assert draftjs_to_text({"blocks": []}) is None
+
