@@ -176,6 +176,24 @@ class JobStreetScraper(BaseScraper):
                     # Fetch optional detail HTML
                     details = self._fetch_job_detail(raw_id)
 
+                    # JobStreet's detail page is a JS-rendered SPA with no static
+                    # full body. Fall back to the list endpoint's `teaser`
+                    # (intro paragraph) + `bulletPoints` (highlights) so the
+                    # notification still carries a readable summary.
+                    job_desc = details.get("job_description")
+                    if not job_desc:
+                        parts = []
+                        teaser = job.get("teaser")
+                        if isinstance(teaser, str) and teaser.strip():
+                            parts.append(teaser.strip())
+                        bullets = job.get("bulletPoints")
+                        if isinstance(bullets, list):
+                            for b in bullets:
+                                if isinstance(b, str) and b.strip():
+                                    parts.append(f"• {b.strip()}")
+                        if parts:
+                            job_desc = "\n\n".join(parts)
+
                     item = new_job_dict(
                         raw_id=raw_id,
                         source=self.source_name,
@@ -191,7 +209,7 @@ class JobStreetScraper(BaseScraper):
                         work_mode=work_mode,
                         posted_at=posted_at,
                         application_deadline=details.get("application_deadline"),
-                        job_description=details.get("job_description"),
+                        job_description=job_desc,
                         qualifications=details.get("qualifications"),
                         skills=details.get("skills"),
                         experience=details.get("experience"),
