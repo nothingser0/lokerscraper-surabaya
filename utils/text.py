@@ -541,8 +541,11 @@ def translate_to_id(text: Optional[str]) -> str:
     Translation is opt-in: when no DeepL key is configured, the original text
     is returned unchanged (no partial glossary translation). On API failure the
     original text is also returned so notifications never break.
+
+    Newlines are preserved so paragraph/list structure survives translation.
     """
-    cleaned = sanitize_text(text) if text else ""
+    cleaned = text if text else ""
+    cleaned = _normalize_description(cleaned)
     if not cleaned:
         return ""
 
@@ -575,7 +578,7 @@ def translate_to_id(text: Optional[str]) -> str:
             data = resp.json()
             translations = data.get("translations", [])
             if translations and translations[0].get("text"):
-                return sanitize_text(translations[0]["text"])
+                return _normalize_description(translations[0]["text"])
         logger.warning(
             f"DeepL translation failed with status {resp.status_code}; returning original text."
         )
@@ -583,3 +586,61 @@ def translate_to_id(text: Optional[str]) -> str:
         logger.warning(f"DeepL translation error ({e}); returning original text.")
 
     return cleaned
+
+
+def _normalize_description(text: Optional[str]) -> str:
+    """Clean job description HTML/text while PRESERVING paragraph structure.
+
+    Unlike `sanitize_text` (which flattens everything to one line), this keeps
+    newlines so headings, bullets, and paragraphs remain readable in Discord.
+    """
+    if not text:
+        return ""
+    text = html.unescape(text)
+    # Structural tags become newlines instead of spaces.
+    text = re.sub(r"(?i)<br\s*/?>|</p>|</h\d>|</div>|</ul>|</ol>", "\n", text)
+    # Each list item starts on its own line with a bullet.
+    text = re.sub(r"(?i)<li[^>]*>", "\n• ", text)
+    text = re.sub(r"(?i)<ul[^>]*>|<ol[^>]*>", "\n", text)
+    text = _TAG_RE.sub(" ", text)
+    text = unicodedata.normalize("NFKC", text)
+    # Remove control chars EXCEPT newlines (we preserve paragraph structure).
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", text)
+    # Collapse runs of spaces on a single line, but keep newlines.
+    lines = [re.sub(r"[ \t]+", " ", ln).strip() for ln in text.splitlines()]
+    # Drop empty lines but keep single blank lines between paragraphs.
+    out: list = []
+    for ln in lines:
+        if ln:
+            out.append(ln)
+        elif out and out[-1] != "":
+            out.append("")
+    return "\n".join(out).strip()
+
+
+def clean_description(text: Optional[str]) -> str:
+    """Public alias for cleaning descriptions while preserving structure.
+
+    Scrapers should use this (instead of `sanitize_text`) for `job_description`
+    and `qualifications` fields so paragraph/list structure survives to Discord.
+    """
+    return _normalize_description(text)
+
+
+def format_description_id(description: Optional[str], max_len: int = 500) -> str:
+    """Translate (opt-in) and neatly format a job description for Discord.
+
+    Returns a multi-line string with paragraph breaks preserved and long runs
+    broken into readable chunks. Falls back to the original text untouched when
+    translation is unavailable.
+    """
+    translated = translate_to_id(description)
+    if not translated:
+        return ""
+    if len(translated) <= max_len:
+        return translated
+    # Truncate on a line boundary when possible.
+    cut = translated[:max_len]
+    if "\n" in cut:
+        cut = cut.rsplit("\n", 1)[0]
+    return cut.rstrip() + "…"

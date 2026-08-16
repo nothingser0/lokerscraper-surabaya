@@ -8,6 +8,7 @@ from config import config
 from scrapers.base import BaseScraper, new_job_dict
 from utils.text import (
     sanitize_text,
+    clean_description,
     format_job_type_id,
     decode_glints_education,
 )
@@ -185,8 +186,8 @@ class GlintsScraper(BaseScraper):
                             experience = f"hingga {max_exp} tahun"
 
                     education = decode_glints_education(job.get("educationLevel"))
-                    job_desc = sanitize_text(job.get("description")) or None
-                    qualifications = sanitize_text(job.get("requirements")) or None
+                    job_desc = clean_description(job.get("description")) or None
+                    qualifications = clean_description(job.get("requirements")) or None
 
                     benefits_raw = job.get("benefits")
                     benefits = [sanitize_text(str(benefits_raw))] if benefits_raw else None

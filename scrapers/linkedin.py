@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 from config import config
 from scrapers.base import BaseScraper, new_job_dict
-from utils.text import sanitize_text
+from utils.text import sanitize_text, clean_description
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class LinkedInScraper(BaseScraper):
                 # Description section
                 desc_el = soup.find("div", class_=re.compile(r"show-more-less-html__markup|description__text"))
                 if desc_el:
-                    full_desc = sanitize_text(desc_el.get_text())
+                    full_desc = clean_description(desc_el.get_text(" ", strip=True))
                     if full_desc:
                         details["job_description"] = full_desc
 

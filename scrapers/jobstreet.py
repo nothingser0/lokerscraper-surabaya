@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 from config import config
 from scrapers.base import BaseScraper, new_job_dict
-from utils.text import sanitize_text, parse_salary_label, format_job_type_id
+from utils.text import sanitize_text, clean_description, parse_salary_label, format_job_type_id
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class JobStreetScraper(BaseScraper):
                 # Extract description & qualifications
                 desc_el = soup.find("div", {"data-automation": "jobDescription"}) or soup.find("div", class_=re.compile(r"jobDescription|Description"))
                 if desc_el:
-                    full_text = sanitize_text(desc_el.get_text())
+                    full_text = clean_description(desc_el.get_text(" ", strip=True))
                     if full_text:
                         details["job_description"] = full_text
 

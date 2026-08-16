@@ -6,6 +6,7 @@ from config import config
 from scrapers.base import BaseScraper, new_job_dict
 from utils.text import (
     sanitize_text,
+    clean_description,
     format_job_type_id,
     decode_kalibrr_experience,
     decode_kalibrr_education,
@@ -153,8 +154,8 @@ class KalibrrScraper(BaseScraper):
                     experience = decode_kalibrr_experience(job.get("work_experience"))
                     education = decode_kalibrr_education(job.get("education_level"))
 
-                    job_desc = sanitize_text(job.get("description")) or None
-                    qualifications = sanitize_text(job.get("qualifications")) or None
+                    job_desc = clean_description(job.get("description")) or None
+                    qualifications = clean_description(job.get("qualifications")) or None
 
                     benefits = []
                     perks = job.get("perks")

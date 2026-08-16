@@ -10,7 +10,7 @@ from utils.text import (
     format_job_type_id,
     format_work_mode_id,
     format_experience_id,
-    translate_to_id,
+    format_description_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ SOURCE_EMOJI = {
 }
 
 _FIELD_MAX_LEN = 28
-_FIELD_MAX_LEN_LONG = 500
+_FIELD_MAX_LEN_LONG = 700
 # Discord caps a single message's total embed size at 6000 characters. Keep
 # batches small and descriptions modest so a batch never exceeds the cap.
 _BATCH_SIZE = 3
@@ -104,7 +104,7 @@ class DiscordNotifier:
             benefits_str = ", ".join(job["benefits"]) if isinstance(job["benefits"], list) else str(job["benefits"])
             fields.append({"name": "Fasilitas", "value": _clip(benefits_str, 300), "inline": False})
         if job.get("job_description"):
-            fields.append({"name": "Deskripsi", "value": _clip(translate_to_id(job["job_description"]), _FIELD_MAX_LEN_LONG), "inline": False})
+            fields.append({"name": "Deskripsi", "value": format_description_id(job["job_description"], _FIELD_MAX_LEN_LONG), "inline": False})
 
         embed = {
             "title": title,

@@ -7,6 +7,7 @@ from utils.text import (
     format_job_type_id,
     format_work_mode_id,
     format_experience_id,
+    format_description_id,
     translate_description_id,
     translate_to_id,
 )
@@ -260,4 +261,50 @@ class TestScraperRequestDelays:
         from scrapers.sejutacita import SejutaCitaScraper
         for cls in (KalibrrScraper, JobStreetScraper, GlintsScraper, LinkedInScraper, SejutaCitaScraper):
             assert cls()._session is None  # lazily created; but must be initialized attr
+
+
+class TestFormatDescriptionId:
+    def test_preserves_paragraphs_and_bullets(self):
+        """HTML headings/lists/paragraphs become multi-line text, not one blob."""
+        desc = (
+            "<h3>Responsibilities</h3>"
+            "<ul><li>Design cloud infrastructure</li>"
+            "<li>Implement CI/CD pipelines</li></ul>"
+            "<p>You will monitor and respond to incidents.</p>"
+        )
+        out = format_description_id(desc)
+        assert "\n" in out
+        assert "Responsibilities" in out
+        assert "Design cloud infrastructure" in out
+        assert "Implement CI/CD pipelines" in out
+
+    def test_truncates_on_line_boundary(self):
+        long_desc = "Line one is short.\n" + ("word " * 200) + "\nLine last."
+        out = format_description_id(long_desc, max_len=40)
+        assert len(out) <= 40 + 1  # + ellipsis
+        assert out.endswith("…")
+
+    def test_empty_returns_empty(self):
+        assert format_description_id("") == ""
+        assert format_description_id(None) == ""
+
+
+class TestCleanDescription:
+    def test_preserves_newlines_unlike_sanitize_text(self):
+        """clean_description keeps paragraphs; sanitize_text flattens them."""
+        from utils.text import clean_description, sanitize_text
+        src = "Responsibilities\n- Design cloud infra\n- Implement CI/CD"
+        assert "\n" in clean_description(src)
+        assert "\n" not in sanitize_text(src)
+
+    def test_heading_and_bullets_become_multiline(self):
+        from utils.text import clean_description
+        out = clean_description("<h3>Requirements</h3><ul><li>A</li><li>B</li></ul>")
+        assert "\n" in out
+        assert "Requirements" in out
+        assert "A" in out and "B" in out
+
+    def test_none_returns_empty(self):
+        from utils.text import clean_description
+        assert clean_description(None) == ""
 
