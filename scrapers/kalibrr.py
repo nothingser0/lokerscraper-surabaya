@@ -3,8 +3,14 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 from config import config
-from scrapers.base import BaseScraper
-from utils.text import sanitize_text, format_salary_id
+from scrapers.base import BaseScraper, new_job_dict
+from utils.text import (
+    sanitize_text,
+    format_job_type_id,
+    decode_kalibrr_experience,
+    decode_kalibrr_education,
+    decode_benefit,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,36 +22,11 @@ class KalibrrScraper(BaseScraper):
         return "Kalibrr"
 
     def __init__(self):
+        super().__init__()
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
         }
-
-    def _format_salary(self, min_sal: Any, max_sal: Any) -> str:
-        if not min_sal and not max_sal:
-            return "Not disclosed"
-        
-        def to_m(val):
-            if not val:
-                return None
-            try:
-                val_num = float(val)
-                if val_num >= 1_000_000:
-                    return f"{val_num / 1_000_000:.1f}".rstrip('0').rstrip('.') + "M"
-                return str(int(val_num))
-            except (ValueError, TypeError):
-                return None
-
-        min_str = to_m(min_sal)
-        max_str = to_m(max_sal)
-
-        if min_str and max_str:
-            return f"IDR {min_str} - {max_str}"
-        elif min_str:
-            return f"IDR {min_str}+"
-        elif max_str:
-            return f"IDR up to {max_str}"
-        return "Not disclosed"
 
     def _get_work_mode(self, job: Dict[str, Any]) -> str:
         if job.get("is_work_from_home"):
@@ -65,8 +46,8 @@ class KalibrrScraper(BaseScraper):
                     return city
         return default_loc
 
-    def _format_date(self, date_str: str) -> str:
-        if not date_str:
+    def _format_date(self, date_str: Any) -> str:
+        if not date_str or not isinstance(date_str, str):
             return ""
         try:
             dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
@@ -87,7 +68,7 @@ class KalibrrScraper(BaseScraper):
                 "offset": 0
             }
             try:
-                response = self.session.get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
+                response = self._get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
                 if response.status_code != 200:
                     logger.warning(f"Kalibrr returned status {response.status_code} for keyword {kw}")
                     continue
@@ -118,36 +99,104 @@ class KalibrrScraper(BaseScraper):
                     company_name = company_name if isinstance(company_name, str) else "Unknown"
                     
                     company_info = job.get("company_info")
+                    company_info_dict = company_info if isinstance(company_info, dict) else {}
                     company_code = (
                         job.get("company_code") 
-                        or (company_info.get("code") if isinstance(company_info, dict) else None)
+                        or company_info_dict.get("code")
                         or "company"
                     )
                     
+                    logo_url = company_info_dict.get("logo") or company_info_dict.get("logo_small")
+                    company_industry = company_info_dict.get("industry")
+                    company_description = company_info_dict.get("description")
+
                     slug = job.get("slug")
                     job_slug = slug if isinstance(slug, str) else str(raw_id)
                     job_url = f"https://www.kalibrr.com/c/{company_code}/jobs/{raw_id}/{job_slug}"
 
                     tenure = job.get("tenure")
-                    job_type = tenure if isinstance(tenure, str) and tenure else "Full-time"
+                    job_type = format_job_type_id(tenure if isinstance(tenure, str) and tenure else "Full-time")
 
-                    created_at = job.get("created_at")
-                    created_at_str = created_at if isinstance(created_at, str) else ""
+                    created_at_str = self._format_date(job.get("created_at"))
+                    posted_at = created_at_str or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                    deadline_str = self._format_date(job.get("application_end_date"))
+                    application_deadline = deadline_str if deadline_str else None
 
-                    item = {
-                        "raw_id": str(raw_id),
-                        "source": self.source_name,
-                        "title": sanitize_text(job_name_str or "Untitled"),
-                        "company": sanitize_text(company_name),
-                        "location": sanitize_text(location_str),
-                        "salary": format_salary_id(self._format_salary(job.get("base_salary"), job.get("maximum_salary"))),
-                        "type": sanitize_text(job_type),
-                        "work_mode": self._get_work_mode(job),
-                        "url": job_url,
-                        "posted_at": self._format_date(created_at_str),
-                        "scraped_at": datetime.now(timezone.utc).isoformat(),
-                        "keyword": kw
-                    }
+                    sal_min = None
+                    sal_max = None
+                    base_sal = job.get("base_salary")
+                    max_sal = job.get("maximum_salary")
+                    try:
+                        sal_min = int(base_sal) if base_sal is not None else None
+                    except (ValueError, TypeError):
+                        pass
+                    try:
+                        sal_max = int(max_sal) if max_sal is not None else None
+                    except (ValueError, TypeError):
+                        pass
+                    sal_curr = job.get("salary_currency") or ("IDR" if (sal_min or sal_max) else None)
+
+                    openings = job.get("number_of_openings")
+                    number_of_openings = int(openings) if isinstance(openings, (int, float)) else None
+
+                    skills_list = []
+                    sds_skills = job.get("job_sds_skills")
+                    if isinstance(sds_skills, list):
+                        for sk in sds_skills:
+                            if isinstance(sk, dict):
+                                sds_obj = sk.get("sds_skill")
+                                if isinstance(sds_obj, dict):
+                                    sname = sds_obj.get("name")
+                                    if isinstance(sname, str) and sname:
+                                        skills_list.append(sname)
+
+                    experience = decode_kalibrr_experience(job.get("work_experience"))
+                    education = decode_kalibrr_education(job.get("education_level"))
+
+                    job_desc = sanitize_text(job.get("description")) or None
+                    qualifications = sanitize_text(job.get("qualifications")) or None
+
+                    benefits = []
+                    perks = job.get("perks")
+                    if isinstance(perks, dict):
+                        ptypes = perks.get("types")
+                        if isinstance(ptypes, list):
+                            for p in ptypes:
+                                if isinstance(p, str) and p:
+                                    benefits.append(decode_benefit(p))
+                        pother = perks.get("other")
+                        if isinstance(pother, str) and pother:
+                            decoded_other = decode_benefit(pother)
+                            if decoded_other:
+                                benefits.append(decoded_other)
+
+                    item = new_job_dict(
+                        raw_id=str(raw_id),
+                        source=self.source_name,
+                        title=sanitize_text(job_name_str or "Untitled"),
+                        company=sanitize_text(company_name),
+                        logo_url=logo_url,
+                        company_industry=company_industry,
+                        company_description=company_description,
+                        location=sanitize_text(location_str),
+                        salary_min=sal_min,
+                        salary_max=sal_max,
+                        salary_currency=sal_curr,
+                        work_type=job_type,
+                        work_mode=self._get_work_mode(job),
+                        posted_at=posted_at,
+                        application_deadline=application_deadline,
+                        applicant_count=None,
+                        number_of_openings=number_of_openings,
+                        skills=skills_list if skills_list else None,
+                        experience=experience,
+                        education=education,
+                        job_description=job_desc,
+                        qualifications=qualifications,
+                        benefits=benefits if benefits else None,
+                        url=job_url,
+                        scraped_at=datetime.now(timezone.utc).isoformat(),
+                    )
 
                     scraped_jobs.append(item)
                     seen_job_ids.add(raw_id)

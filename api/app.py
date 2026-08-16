@@ -64,11 +64,11 @@ def _run_scrape_async(force: bool = False):
     except Exception as e:
         logger.error(f"Error in manual scrape cycle: {e}", exc_info=True)
 
-@app.route("/api/trigger", methods=["POST"])
+@app.route("/api/trigger", methods=["GET", "POST"])
 def trigger_scrape():
     """Manually trigger a scrape cycle without waiting for the scheduler.
 
-    Add `?force=true` to also send the freshly fetched batch to Discord even if
+    Use POST, or open the URL directly with GET. Add `?force=true` to also send the freshly fetched batch to Discord even if
     no new jobs were found (useful for testing the notification path).
     """
     if getattr(config, "TRIGGER_TOKEN", "") and request.headers.get("X-Trigger-Token") != config.TRIGGER_TOKEN:
@@ -145,9 +145,10 @@ def get_jobs():
     if keyword:
         filtered = [
             j for j in filtered
-            if keyword in j.get("title", "").lower()
-            or keyword in j.get("company", "").lower()
-            or keyword in j.get("description", "").lower()
+            if keyword in (j.get("title") or "").lower()
+            or keyword in (j.get("company") or "").lower()
+            or keyword in (j.get("job_description") or j.get("description") or "").lower()
+            or keyword in (j.get("qualifications") or "").lower()
         ]
 
     if source:

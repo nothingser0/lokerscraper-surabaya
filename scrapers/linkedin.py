@@ -1,11 +1,11 @@
 import logging
 import re
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from bs4 import BeautifulSoup
 
 from config import config
-from scrapers.base import BaseScraper
+from scrapers.base import BaseScraper, new_job_dict
 from utils.text import sanitize_text
 
 logger = logging.getLogger(__name__)
@@ -18,11 +18,57 @@ class LinkedInScraper(BaseScraper):
         return "LinkedIn"
 
     def __init__(self):
+        super().__init__()
+        # LinkedIn aggressively rate-limits unauthenticated requests (429).
+        # Space out keyword + detail requests to stay under the threshold.
+        self.request_delay = 3.0
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         }
+
+    def _fetch_job_detail(self, raw_id: str) -> Dict[str, Any]:
+        """Fetch detail HTML from https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{raw_id}"""
+        url = f"https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{raw_id}"
+        details: Dict[str, Any] = {
+            "job_description": None,
+            "qualifications": None,
+            "skills": None,
+            "experience": None,
+            "company_industry": None,
+        }
+        try:
+            resp = self._get(url, headers=self.headers, timeout=8)
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, "html.parser")
+
+                # Description section
+                desc_el = soup.find("div", class_=re.compile(r"show-more-less-html__markup|description__text"))
+                if desc_el:
+                    full_desc = sanitize_text(desc_el.get_text())
+                    if full_desc:
+                        details["job_description"] = full_desc
+
+                # Seniority level (experience)
+                criteria_list = soup.find_all("li", class_=re.compile(r"description__job-criteria-item"))
+                for item in criteria_list:
+                    header = item.find("h3")
+                    val = item.find("span")
+                    if header and val:
+                        htext = header.get_text(strip=True).lower()
+                        vtext = val.get_text(strip=True)
+                        if "seniority" in htext:
+                            # LinkedIn uses "Not Applicable" when no seniority level
+                            # is set; treat it as no data instead of a raw label.
+                            details["experience"] = vtext if vtext and vtext.strip().lower() != "not applicable" else None
+                        elif "industries" in htext or "industry" in htext:
+                            details["company_industry"] = vtext
+
+        except Exception as e:
+            logger.debug(f"LinkedIn detail fetch skipped for {raw_id}: {e}")
+
+        return details
 
     def fetch_jobs(self) -> List[Dict[str, Any]]:
         scraped_jobs: List[Dict[str, Any]] = []
@@ -36,7 +82,7 @@ class LinkedInScraper(BaseScraper):
                 "start": 0
             }
             try:
-                response = self.session.get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
+                response = self._get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
                 if response.status_code != 200:
                     logger.warning(f"LinkedIn returned status {response.status_code} for keyword {kw}")
                     continue
@@ -71,6 +117,13 @@ class LinkedInScraper(BaseScraper):
                         company_el = card.find("a", class_=re.compile(r"hidden-nested-link"))
                     company = company_el.get_text(strip=True) if company_el else "Unknown"
 
+                    logo_el = card.find("img")
+                    logo_url = None
+                    if logo_el and logo_el.get("data-delayed-url"):
+                        logo_url = logo_el.get("data-delayed-url")
+                    elif logo_el and logo_el.get("src"):
+                        logo_url = logo_el.get("src")
+
                     loc_el = card.find("span", class_=re.compile(r"job-search-card__location"))
                     location_str = loc_el.get_text(strip=True) if loc_el else default_loc
 
@@ -97,19 +150,37 @@ class LinkedInScraper(BaseScraper):
                     else:
                         work_mode = "On-site"
 
-                    item = {
-                        "raw_id": str(raw_id),
-                        "source": self.source_name,
-                        "title": sanitize_text(title),
-                        "company": sanitize_text(company),
-                        "location": sanitize_text(location_str),
-                        "salary": "Not disclosed",
-                        "type": "Full-time",
-                        "work_mode": work_mode,
-                        "url": job_url,
-                        "posted_at": posted_at,
-                        "scraped_at": datetime.now(timezone.utc).isoformat(),
-                    }
+                    # Parse applicant count if available
+                    applicant_count = None
+                    app_el = card.find("span", class_=re.compile(r"job-search-card__num-applicants"))
+                    if app_el:
+                        app_text = app_el.get_text(strip=True)
+                        m = re.search(r"(\d+)", app_text)
+                        if m:
+                            applicant_count = int(m.group(1))
+
+                    # Fetch optional detail HTML
+                    details = self._fetch_job_detail(raw_id)
+
+                    item = new_job_dict(
+                        raw_id=str(raw_id),
+                        source=self.source_name,
+                        title=sanitize_text(title),
+                        company=sanitize_text(company),
+                        logo_url=logo_url,
+                        company_industry=details.get("company_industry"),
+                        location=sanitize_text(location_str),
+                        work_type="Full-time",
+                        work_mode=work_mode,
+                        posted_at=posted_at,
+                        applicant_count=applicant_count,
+                        experience=details.get("experience"),
+                        job_description=details.get("job_description"),
+                        qualifications=details.get("qualifications"),
+                        skills=details.get("skills"),
+                        url=job_url,
+                        scraped_at=datetime.now(timezone.utc).isoformat(),
+                    )
 
                     scraped_jobs.append(item)
                     seen_job_ids.add(raw_id)

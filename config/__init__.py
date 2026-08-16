@@ -22,6 +22,8 @@ class Config:
     DISCORD_WEBHOOK_URL: str = field(default_factory=lambda: os.getenv("DISCORD_WEBHOOK_URL", ""))
     TELEGRAM_BOT_TOKEN: str = field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN", ""))
     TELEGRAM_CHAT_ID: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_ID", ""))
+    DEEPL_API_KEY: str = field(default_factory=lambda: os.getenv("DEEPL_API_KEY", ""))
+    DEEPL_API_URL: str = field(default_factory=lambda: os.getenv("DEEPL_API_URL", "https://api-free.deepl.com/v2/translate"))
     SCRAPE_INTERVAL_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_HOURS", "6")))
     TRIGGER_TOKEN: str = field(default_factory=lambda: os.getenv("TRIGGER_TOKEN", ""))
     IT_KEYWORDS: List[str] = field(default_factory=lambda: [k.strip().lower() for k in os.getenv("IT_KEYWORDS", _default_keywords).split(",") if k.strip()])
@@ -39,6 +41,8 @@ config = Config()
 DISCORD_WEBHOOK_URL = config.DISCORD_WEBHOOK_URL
 TELEGRAM_BOT_TOKEN = config.TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID = config.TELEGRAM_CHAT_ID
+DEEPL_API_KEY = config.DEEPL_API_KEY
+DEEPL_API_URL = config.DEEPL_API_URL
 SCRAPE_INTERVAL_HOURS = config.SCRAPE_INTERVAL_HOURS
 TRIGGER_TOKEN = config.TRIGGER_TOKEN
 IT_KEYWORDS = config.IT_KEYWORDS

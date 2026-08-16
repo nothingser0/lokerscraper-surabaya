@@ -12,7 +12,8 @@ It scrapes 5 job platforms (JobStreet, Kalibrr, Glints, LinkedIn, SejutaCita) wi
 - **Low Memory Footprint:** Idle `<50MB RAM`, Scraping `<120MB RAM` (Runs smoothly on Armbian STBs with <2GB RAM).
 - **Strict IT & Location Filtering:** Filters IT roles (`developer`, `engineer`, `programmer`, `data`, `devops`, `qa`, etc.) located in `Surabaya`, `Sidoarjo`, `Gresik`, `Remote`, or `Hybrid`.
 - **Deduplication Engine:** Deterministic MD5 hash ID tracking via `data/seen-ids.json`.
-- **Rich Discord Notifications:** Automatic embeds with source-specific colors, salary range, job type, work mode, location, and direct links.
+- **Rich Discord Notifications:** Automatic embeds with source-specific colors, salary range, job type, work mode, experience level, location, and direct links.
+- **Optional Bahasa Indonesia Translation:** Job descriptions can be auto-translated to Bahasa Indonesia via DeepL (opt-in — enabled only when `DEEPL_API_KEY` is set).
 - **Built-in REST API & Scheduler:** Lightweight Flask API (`/api/jobs`, `/api/stats`, `/health`) with integrated background `APScheduler` (every 6 hours).
 - **Crash-Resilient Storage:** Atomic file writes with `.bak` backup auto-recovery.
 
@@ -58,6 +59,22 @@ SCRAPE_INTERVAL_HOURS=6
 IT_KEYWORDS=developer,engineer,programmer,backend,frontend,fullstack,mobile,data,devops,qa,tester,web
 LOCATIONS=surabaya,sidoarjo,gresik,remote
 ```
+
+### Optional: Translate Job Descriptions to Bahasa Indonesia
+
+By default, job descriptions are kept in their original language. To
+auto-translate descriptions to Bahasa Indonesia, set a DeepL API key:
+
+```env
+DEEPL_API_KEY=your-deepl-auth-key
+DEEPL_API_URL=https://api-free.deepl.com/v2/translate
+```
+
+- Leave `DEEPL_API_KEY` empty to disable translation (descriptions stay as-is).
+- Free DeepL API uses `https://api-free.deepl.com/v2/translate`; DeepL Pro uses
+  `https://api.deepl.com/v2/translate`.
+- If the key is missing or the API call fails, descriptions are kept in the
+  original language (notifications never break).
 
 ### 3. Run Flask API & Scheduler
 ```bash
