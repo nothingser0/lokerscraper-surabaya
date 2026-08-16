@@ -12,7 +12,7 @@ It scrapes 5 job platforms (JobStreet, Kalibrr, Glints, LinkedIn, SejutaCita) wi
 - **Low Memory Footprint:** Idle `<50MB RAM`, Scraping `<120MB RAM` (Runs smoothly on Armbian STBs with <2GB RAM).
 - **Strict IT & Location Filtering:** Filters IT roles (`developer`, `engineer`, `programmer`, `data`, `devops`, `qa`, etc.) located in `Surabaya`, `Sidoarjo`, `Gresik`, `Remote`, or `Hybrid`.
 - **Deduplication Engine:** Deterministic MD5 hash ID tracking via `data/seen-ids.json`.
-- **Rich Discord Notifications:** Automatic embeds with source-specific colors, salary range, job type, work mode, experience level, location, and direct links.
+- **Rich Discord Notifications:** Automatic embeds with source-specific colors, salary range, job type, work mode, experience level, location, and direct links. Supports notifying **multiple Discord webhooks**.
 - **Optional Bahasa Indonesia Translation:** Job descriptions can be auto-translated to Bahasa Indonesia via DeepL (opt-in — enabled only when `DEEPL_API_KEY` is set).
 - **Built-in REST API & Scheduler:** Lightweight Flask API (`/api/jobs`, `/api/stats`, `/health`) with integrated background `APScheduler` (every 6 hours).
 - **Crash-Resilient Storage:** Atomic file writes with `.bak` backup auto-recovery.
@@ -59,6 +59,29 @@ SCRAPE_INTERVAL_HOURS=6
 IT_KEYWORDS=developer,engineer,programmer,backend,frontend,fullstack,mobile,data,devops,qa,tester,web
 LOCATIONS=surabaya,sidoarjo,gresik,remote
 ```
+
+### Notify Multiple Discord Channels
+
+To send notifications to more than one Discord channel/server, use the
+comma-separated `DISCORD_WEBHOOK_URLS` variable (takes precedence over
+`DISCORD_WEBHOOK_URL`):
+
+```env
+DISCORD_WEBHOOK_URLS=https://discord.com/api/webhooks/aaa/bbb,https://discord.com/api/webhooks/ccc/ddd
+```
+
+### Random Scrape Interval
+
+By default the scraper runs every `SCRAPE_INTERVAL_HOURS`. To vary the delay
+between runs (e.g. to look less bot-like), set a random range:
+
+```env
+SCRAPE_INTERVAL_MIN_HOURS=4
+SCRAPE_INTERVAL_MAX_HOURS=8
+```
+
+When both are set and `MAX > MIN`, each cycle is scheduled with a random delay
+between `MIN` and `MAX` hours. Leave both at `0` to use the fixed interval.
 
 ### Optional: Translate Job Descriptions to Bahasa Indonesia
 

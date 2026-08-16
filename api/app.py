@@ -20,7 +20,7 @@ from typing import Dict, Any
 from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from config import config
+from config import config, random_scrape_interval_hours
 from storage import StorageService
 from engine.runner import ScraperRunner
 
@@ -37,12 +37,37 @@ def scheduled_scrape_job():
         logger.info(f"Scheduled scrape cycle finished: {result.get('new_jobs_count', 0)} new jobs found.")
     except Exception as e:
         logger.error(f"Error in scheduled scrape cycle: {e}", exc_info=True)
+    finally:
+        _reschedule_next_run()
+
+
+def _reschedule_next_run():
+    """Re-arm the scheduled job with a fresh (possibly random) interval.
+
+    Uses a one-shot 'date' trigger computed from a random [min, max] interval
+    (or the fixed SCRAPE_INTERVAL_HOURS), so each cycle can vary instead of
+    being locked to a single interval at startup.
+    """
+    interval_hours = random_scrape_interval_hours()
+    run_at = datetime.now(timezone.utc) + timedelta(hours=interval_hours)
+    try:
+        scheduler.add_job(
+            scheduled_scrape_job,
+            'date',
+            run_date=run_at,
+            id='scraper_cycle_job',
+            replace_existing=True,
+        )
+        logger.info(f"Next scrape scheduled at ~{run_at.isoformat()} ({interval_hours}h).")
+    except Exception as e:
+        logger.error(f"Failed to reschedule scrape job: {e}", exc_info=True)
+
 
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.add_job(
     scheduled_scrape_job,
-    'interval',
-    hours=config.SCRAPE_INTERVAL_HOURS,
+    'date',
+    run_date=datetime.now(timezone.utc) + timedelta(hours=random_scrape_interval_hours()),
     id='scraper_cycle_job',
     replace_existing=True
 )
