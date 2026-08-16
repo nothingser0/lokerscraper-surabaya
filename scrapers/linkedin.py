@@ -49,7 +49,9 @@ class LinkedInScraper(BaseScraper):
                 # Description section
                 desc_el = soup.find("div", class_=re.compile(r"show-more-less-html__markup|description__text"))
                 if desc_el:
-                    full_desc = clean_description(desc_el.get_text(" ", strip=True))
+                    # Pass raw HTML (not get_text) so clean_description can
+                    # convert <br>/<li>/<ul>/<p> into newlines & bullets.
+                    full_desc = clean_description(str(desc_el))
                     if full_desc:
                         details["job_description"] = full_desc
 

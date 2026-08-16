@@ -55,7 +55,9 @@ class JobStreetScraper(BaseScraper):
                 # Extract description & qualifications
                 desc_el = soup.find("div", {"data-automation": "jobDescription"}) or soup.find("div", class_=re.compile(r"jobDescription|Description"))
                 if desc_el:
-                    full_text = clean_description(desc_el.get_text(" ", strip=True))
+                    # Pass raw HTML (not get_text) so clean_description can
+                    # convert <br>/<li>/<ul>/<p> into newlines & bullets.
+                    full_text = clean_description(str(desc_el))
                     if full_text:
                         details["job_description"] = full_text
 
