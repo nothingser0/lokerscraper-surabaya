@@ -308,6 +308,20 @@ class TestCleanDescription:
         from utils.text import clean_description
         assert clean_description(None) == ""
 
+    def test_strips_linkedin_show_more_less_toggle(self):
+        from utils.text import clean_description
+        # Toggle labels from <button> tags (merged) and standalone lines.
+        assert "Show more" not in clean_description(
+            "<ul><li>Build CI/CD</li></ul><button>Show more</button><button>Show less</button>"
+        )
+        assert "Show less" not in clean_description("Intro\n\nShow more\n\nShow less")
+
+    def test_keeps_legit_show_more_phrase(self):
+        from utils.text import clean_description
+        # "show more" inside a real sentence must NOT be stripped.
+        out = clean_description("We will show more details to shortlisted candidates.")
+        assert "show more" in out
+
 
 class TestDraftjsToText:
     def test_unstyled_and_list_items_become_multiline(self):

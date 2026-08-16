@@ -598,7 +598,7 @@ def _normalize_description(text: Optional[str]) -> str:
         return ""
     text = html.unescape(text)
     # Structural tags become newlines instead of spaces.
-    text = re.sub(r"(?i)<br\s*/?>|</p>|</h\d>|</div>|</ul>|</ol>", "\n", text)
+    text = re.sub(r"(?i)<br\s*/?>|</p>|</h\d>|</div>|</ul>|</ol>|<button[^>]*>|</button>", "\n", text)
     # Each list item starts on its own line with a bullet.
     text = re.sub(r"(?i)<li[^>]*>", "\n• ", text)
     text = re.sub(r"(?i)<ul[^>]*>|<ol[^>]*>", "\n", text)
@@ -615,6 +615,8 @@ def _normalize_description(text: Optional[str]) -> str:
             out.append(ln)
         elif out and out[-1] != "":
             out.append("")
+    # Drop LinkedIn's "Show more"/"Show less" toggle labels (standalone lines).
+    out = [ln for ln in out if ln and ln.strip().lower() not in ("show more", "show less")]
     return "\n".join(out).strip()
 
 
