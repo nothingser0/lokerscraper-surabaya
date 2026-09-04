@@ -3,9 +3,18 @@ import sys
 import threading
 from pathlib import Path
 
+# Configure logging to both console and file
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(
+            Path(__file__).resolve().parent.parent / "logs" / "scraper.log",
+            mode='a',
+            encoding='utf-8'
+        )
+    ]
 )
 
 # Ensure the project root is on sys.path so that `python api/app.py`
