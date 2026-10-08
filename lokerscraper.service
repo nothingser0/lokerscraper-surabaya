@@ -1,15 +1,21 @@
 [Unit]
 Description=LokerScraper Surabaya Service
-After=network.target
+After=network.target network-online.target
+Wants=network-online.target
 
 [Service]
+# Path dynamic: sesuaikan WorkingDirectory dan ExecStart dengan direktori instalasi device Anda
+# atau gunakan format portable %h (user home directory) jika ditaruh di systemd user service.
 Type=simple
-User=root
-WorkingDirectory=/media/devmon/sda1-usb-SanDisk_Cruzer_B/job-scraper
-ExecStart=/media/devmon/sda1-usb-SanDisk_Cruzer_B/job-scraper/.venv/bin/python api/app.py
+WorkingDirectory=%h/lokerscraper-surabaya
+ExecStart=/usr/bin/env python3 api/app.py
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=%h/lokerscraper-surabaya/.env
 Restart=always
 RestartSec=10
-EnvironmentFile=/media/devmon/sda1-usb-SanDisk_Cruzer_B/job-scraper/.env
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

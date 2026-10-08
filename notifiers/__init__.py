@@ -41,4 +41,20 @@ def notify_new_jobs(jobs: List[Dict[str, Any]]) -> None:
             logger.error(f"Error sending Discord notification: {e}")
 
 
-__all__ = ["DiscordNotifier", "TelegramNotifier", "notify_new_jobs"]
+def notify_scraper_error(errors: List[str]) -> None:
+    """Send a system alert to Discord webhook if scrapers encounter repeated failures."""
+    if not errors:
+        return
+
+    payload = {
+        "content": "⚠️ **LokerScraper Alert**: Ada platform scraper yang mengalami kegagalan pada siklus ini:\n" + "\n".join(f"- {err}" for err in errors)
+    }
+    for webhook_url in _discord_webhook_urls():
+        try:
+            import requests
+            requests.post(webhook_url, json=payload, timeout=8)
+        except Exception as e:
+            logger.error(f"Error sending Discord error notification: {e}")
+
+
+__all__ = ["DiscordNotifier", "TelegramNotifier", "notify_new_jobs", "notify_scraper_error"]

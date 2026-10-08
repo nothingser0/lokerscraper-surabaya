@@ -3,29 +3,20 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any
 
 from config import config
-from scrapers import (
-    KalibrrScraper,
-    JobStreetScraper,
-    GlintsScraper,
-    LinkedInScraper,
-    SejutaCitaScraper,
-)
+import scrapers
+from scrapers.base import BaseScraper
 from storage import StorageService
 from engine.filter import filter_jobs
 from engine.dedup import generate_job_id, deduplicate_jobs
-from notifiers import notify_new_jobs
+from notifiers import notify_new_jobs, notify_scraper_error
 
 logger = logging.getLogger(__name__)
 
 class ScraperRunner:
     def __init__(self):
-        self.scrapers = [
-            KalibrrScraper(),
-            JobStreetScraper(),
-            GlintsScraper(),
-            LinkedInScraper(),
-            SejutaCitaScraper(),
-        ]
+        # Auto-discover all registered BaseScraper subclasses dynamically
+        # Any new scraper class added to the scrapers package is automatically loaded.
+        self.scrapers = [cls() for cls in BaseScraper.__subclasses__()]
 
     def _run_single_scraper(self, scraper: Any) -> List[Dict[str, Any]]:
         scraper_name = scraper.__class__.__name__
@@ -53,6 +44,7 @@ class ScraperRunner:
         """
         storage = StorageService()
         raw_jobs: List[Dict[str, Any]] = []
+        errors: List[str] = []
 
         max_workers = getattr(config, "MAX_WORKERS", 5)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -61,9 +53,13 @@ class ScraperRunner:
                 for scraper in self.scrapers
             }
             for future in as_completed(future_to_scraper):
-                jobs = future.result()
-                if jobs:
-                    raw_jobs.extend(jobs)
+                scraper = future_to_scraper[future]
+                try:
+                    jobs = future.result()
+                    if jobs:
+                        raw_jobs.extend(jobs)
+                except Exception as e:
+                    errors.append(f"{scraper.__class__.__name__}: {e}")
 
         scraped_total = len(raw_jobs)
         
@@ -87,12 +83,16 @@ class ScraperRunner:
             updated_jobs = existing_jobs + new_jobs
             storage.save_jobs(updated_jobs)
             storage.save_seen_ids(updated_seen_ids)
+            storage.log_daily_jobs(new_jobs)
             notify_new_jobs(new_jobs)
 
         if force:
             # Send the freshly filtered batch to Discord even if nothing was new,
             # so the notification path can be verified on demand.
             notify_new_jobs(filtered_jobs)
+
+        if errors:
+            notify_scraper_error(errors)
 
         try:
             storage.cleanup_old_jobs()

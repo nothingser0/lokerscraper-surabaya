@@ -5,12 +5,14 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
-    environment:
-      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
-      - DISCORD_WEBHOOK_URLS=${DISCORD_WEBHOOK_URLS}
-      - SCRAPE_INTERVAL_HOURS=6
-      - IT_KEYWORDS=developer,engineer,programmer,backend,frontend,fullstack,mobile,data,devops,qa,tester,web
-      - LOCATIONS=surabaya,sidoarjo,gresik,remote
+    env_file:
+      - .env
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

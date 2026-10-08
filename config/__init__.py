@@ -15,7 +15,7 @@ LOGS_DIR.mkdir(exist_ok=True)
 env_path = BASE_DIR / ".env"
 load_dotenv(dotenv_path=env_path)
 
-_default_keywords = "developer,engineer,programmer,backend,frontend,fullstack,mobile,data,devops,qa,tester,web"
+_default_keywords = "developer,engineer,programmer,backend,frontend,fullstack,mobile,data,devops,qa,tester,web,quality assurance,software"
 _default_locations = "surabaya,sidoarjo,gresik,remote"
 
 @dataclass
