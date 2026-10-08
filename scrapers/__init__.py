@@ -4,6 +4,7 @@ from scrapers.jobstreet import JobStreetScraper
 from scrapers.glints import GlintsScraper
 from scrapers.linkedin import LinkedInScraper
 from scrapers.sejutacita import SejutaCitaScraper
+from scrapers.techinasia import TechInAsiaScraper
 
 __all__ = [
     "BaseScraper",
@@ -12,4 +13,5 @@ __all__ = [
     "GlintsScraper",
     "LinkedInScraper",
     "SejutaCitaScraper",
+    "TechInAsiaScraper",
 ]
