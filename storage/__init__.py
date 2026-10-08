@@ -25,7 +25,6 @@ class StorageService:
         self._init_sqlite()
 
     def _init_sqlite(self) -> None:
-        """Initialize SQLite schema for high-performance querying and low-memory storage."""
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
                 conn.execute("""
@@ -105,6 +104,52 @@ class StorageService:
             logger.error(f"Error loading jobs from SQLite: {e}")
         return jobs
 
+    def query_jobs(
+        self,
+        keyword: str = "",
+        source: str = "",
+        days: Optional[int] = None,
+        limit: int = 500,
+        offset: int = 0
+    ) -> tuple[int, List[Dict[str, Any]]]:
+        where_clauses = []
+        params: List[Any] = []
+
+        if keyword:
+            like_kw = f"%{keyword.lower()}%"
+            where_clauses.append("(LOWER(title) LIKE ? OR LOWER(company) LIKE ? OR LOWER(data_json) LIKE ?)")
+            params.extend([like_kw, like_kw, like_kw])
+
+        if source:
+            where_clauses.append("LOWER(source) = ?")
+            params.append(source.lower())
+
+        if days is not None and days > 0:
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+            where_clauses.append("(created_at >= ? OR posted_at >= ?)")
+            params.extend([cutoff, cutoff[:10]])
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        total = 0
+        jobs = []
+        try:
+            with sqlite3.connect(self.sqlite_file) as conn:
+                count_cursor = conn.execute(f"SELECT COUNT(*) FROM jobs {where_sql}", params)
+                total = count_cursor.fetchone()[0]
+
+                query_sql = f"SELECT data_json FROM jobs {where_sql} ORDER BY rowid DESC LIMIT ? OFFSET ?"
+                cursor = conn.execute(query_sql, params + [limit, offset])
+                for row in cursor.fetchall():
+                    try:
+                        jobs.append(json.loads(row[0]))
+                    except Exception:
+                        continue
+        except Exception as e:
+            logger.error(f"Error querying jobs from SQLite: {e}")
+
+        return total, jobs
+
     def save_jobs(self, jobs: List[Dict[str, Any]]) -> None:
         """Save jobs list to SQLite and record lastUpdated timestamp."""
         self._sync_to_sqlite(jobs)
@@ -125,6 +170,30 @@ class StorageService:
         except Exception as e:
             logger.error(f"Error reading lastUpdated from SQLite: {e}")
         return None
+
+    def record_scraper_run(self, scraper_name: str, success: bool) -> int:
+        """Track consecutive failure streaks per scraper in SQLite.
+        
+        Returns the current failure streak count for this scraper.
+        """
+        key = f"fail_streak_{scraper_name}"
+        current_fails = 0
+        try:
+            with sqlite3.connect(self.sqlite_file) as conn:
+                row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+                if row and row[0].isdigit():
+                    current_fails = int(row[0])
+                
+                if success:
+                    new_fails = 0
+                else:
+                    new_fails = current_fails + 1
+                
+                conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", (key, str(new_fails)))
+                return new_fails
+        except Exception as e:
+            logger.error(f"Error tracking scraper streak for {scraper_name}: {e}")
+            return 0
 
     def _sync_to_sqlite(self, jobs: List[Dict[str, Any]]) -> None:
         """Upsert jobs into SQLite database."""
@@ -223,6 +292,16 @@ class StorageService:
         if len(valid_jobs) < len(jobs):
             logger.info(f"Cleaned up {len(jobs) - len(valid_jobs)} old jobs.")
             self.save_jobs(valid_jobs)
+            self.vacuum_database()
+
+    def vacuum_database(self) -> None:
+        """Reclaim unused disk space in SQLite database after deletion (VACUUM)."""
+        try:
+            with sqlite3.connect(self.sqlite_file) as conn:
+                conn.execute("VACUUM")
+            logger.info("SQLite database vacuumed successfully.")
+        except Exception as e:
+            logger.error(f"Error vacuuming SQLite database: {e}")
 
     def cleanup_old_logs(self, days: int = 30) -> None:
         """Delete daily log files older than specified days to preserve storage."""
@@ -267,7 +346,6 @@ class StorageService:
         json_path = self.logs_dir / f"jobs-{today_str}.json"
         txt_path = self.logs_dir / f"jobs-{today_str}.txt"
 
-        # 1. Update daily JSON file
         existing_daily: List[Dict[str, Any]] = []
         if json_path.exists():
             try:
@@ -288,7 +366,6 @@ class StorageService:
             except Exception as e:
                 logger.error(f"Error writing daily jobs JSON {json_path}: {e}")
 
-        # 2. Append to daily TXT file
         try:
             lines = []
             for j in unique_additions:

@@ -14,11 +14,9 @@ logger = logging.getLogger(__name__)
 
 class ScraperRunner:
     def __init__(self):
-        # Auto-discover all registered BaseScraper subclasses dynamically
-        # Any new scraper class added to the scrapers package is automatically loaded.
         self.scrapers = [cls() for cls in BaseScraper.__subclasses__()]
 
-    def _run_single_scraper(self, scraper: Any) -> List[Dict[str, Any]]:
+    def _run_single_scraper(self, scraper: Any) -> tuple[str, bool, List[Dict[str, Any]], str]:
         scraper_name = scraper.__class__.__name__
         try:
             logger.info(f"Starting scraper: {scraper_name}")
@@ -29,10 +27,10 @@ class ScraperRunner:
             else:
                 jobs = []
             logger.info(f"Finished {scraper_name}: fetched {len(jobs) if jobs else 0} jobs")
-            return jobs or []
+            return scraper_name, True, jobs or [], ""
         except Exception as e:
             logger.error(f"Error running scraper {scraper_name}: {e}", exc_info=True)
-            return []
+            return scraper_name, False, [], str(e)
 
     def run_cycle(self, force: bool = False) -> Dict[str, Any]:
         """Run one scraping cycle across all scrapers in parallel.
@@ -45,6 +43,7 @@ class ScraperRunner:
         storage = StorageService()
         raw_jobs: List[Dict[str, Any]] = []
         errors: List[str] = []
+        persistent_alerts: List[str] = []
 
         max_workers = getattr(config, "MAX_WORKERS", 5)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -55,9 +54,19 @@ class ScraperRunner:
             for future in as_completed(future_to_scraper):
                 scraper = future_to_scraper[future]
                 try:
-                    jobs = future.result()
+                    scraper_name, success, jobs, err_msg = future.result(timeout=60)
+                    streak = storage.record_scraper_run(scraper_name, success)
                     if jobs:
                         raw_jobs.extend(jobs)
+                    if not success:
+                        errors.append(f"{scraper_name}: {err_msg}")
+                        if streak >= 3:
+                            persistent_alerts.append(f"{scraper_name} (Gagal {streak}x berturut-turut): {err_msg}")
+                except TimeoutError:
+                    name = scraper.__class__.__name__
+                    logger.warning(f"Scraper {name} timed out after 60s.")
+                    storage.record_scraper_run(name, False)
+                    errors.append(f"{name}: Timed out after 60s")
                 except Exception as e:
                     errors.append(f"{scraper.__class__.__name__}: {e}")
 
@@ -87,12 +96,10 @@ class ScraperRunner:
             notify_new_jobs(new_jobs)
 
         if force:
-            # Send the freshly filtered batch to Discord even if nothing was new,
-            # so the notification path can be verified on demand.
             notify_new_jobs(filtered_jobs)
 
-        if errors:
-            notify_scraper_error(errors)
+        if persistent_alerts:
+            notify_scraper_error(persistent_alerts)
 
         try:
             storage.cleanup_old_jobs()

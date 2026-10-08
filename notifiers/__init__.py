@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 from config import config
@@ -42,12 +43,22 @@ def notify_new_jobs(jobs: List[Dict[str, Any]]) -> None:
 
 
 def notify_scraper_error(errors: List[str]) -> None:
-    """Send a system alert to Discord webhook if scrapers encounter repeated failures."""
+    """Send a system alert embed to Discord webhook if scrapers encounter repeated failures."""
     if not errors:
         return
 
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     payload = {
-        "content": "⚠️ **LokerScraper Alert**: Ada platform scraper yang mengalami kegagalan pada siklus ini:\n" + "\n".join(f"- {err}" for err in errors)
+        "embeds": [
+            {
+                "title": "🚨 Scraper Consecutive Failure Alert",
+                "description": "Platform scraper berikut telah mengalami kegagalan **>= 3 siklus berturut-turut**:\n\n" + "\n".join(f"• **{err}**" for err in errors),
+                "color": 0xE74C3C,  # Discord Red
+                "footer": {
+                    "text": f"LokerScraper Surabaya • System Alert • {now_str}"
+                }
+            }
+        ]
     }
     for webhook_url in _discord_webhook_urls():
         try:

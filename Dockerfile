@@ -1,20 +1,21 @@
+# Stage 1: Build dependencies
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Stage 2: Final lightweight runtime
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Prevent python from writing pyc files and buffering stdout
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PATH=/root/.local/bin:$PATH
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
+COPY --from=builder /root/.local /root/.local
 COPY . .
 
-# Expose Flask API port
 EXPOSE 5000
-
-# Run API & Scheduler
 CMD ["python", "api/app.py"]

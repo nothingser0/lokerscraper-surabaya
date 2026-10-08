@@ -279,7 +279,6 @@ def dashboard():
           <div class="inline-block px-3 py-1 rounded-full border border-neutral-700 text-[11px] uppercase tracking-wider text-neutral-400 mb-2">Curated Stream</div>
           <h3 class="text-2xl md:text-3xl font-bold tracking-tight">Active Opportunities</h3>
         </div>
-        <!-- Filter Controls: Full-width balanced grid on mobile, inline on desktop, zero trailing gap -->
         <div class="w-full md:w-auto flex flex-col md:flex-row md:items-center gap-2.5">
           <div class="grid grid-cols-2 sm:grid-cols-4 md:flex md:items-center gap-2 w-full md:w-auto">
           <button id="bookmarkToggle" onclick="toggleBookmarksOnly()" class="bg-neutral-900 text-neutral-200 hover:text-white border border-neutral-800 rounded-full pl-3.5 pr-4 py-2 text-xs font-bold tracking-wide focus:outline-none flex items-center justify-between md:justify-start gap-1.5 transition w-full md:w-auto">
@@ -287,18 +286,15 @@ def dashboard():
             <span>Saved</span>
             <span id="bookmarkCount" class="text-[10px] text-neutral-400 font-mono">(0)</span>
           </button>
-          <!-- Custom Styled Pill Dropdown (Bukan Native OS Box) -->
           <div class="relative w-full md:w-auto col-span-1" id="customDropdownWrapper">
             <button id="sourceFilterBtn" onclick="togglePlatformMenu()" type="button" class="bg-neutral-900 text-neutral-200 hover:text-white border border-neutral-800 rounded-full pl-3.5 pr-7 py-2 text-xs font-bold tracking-wide focus:outline-none flex items-center justify-between md:justify-start gap-1 transition w-full md:w-auto">
               <span id="sourceFilterLabel">All Platforms</span>
               <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-neutral-400">▼</span>
             </button>
-            <!-- Posisi kolom kanan (kolom 2): buka dari kanan (right-0) agar tidak meluber ke kanan -->
             <div id="sourceFilterMenu" class="hidden absolute right-0 md:left-0 mt-2 w-48 bg-[#181818] border border-neutral-700/80 rounded-2xl shadow-2xl py-1.5 z-50 text-xs overflow-hidden backdrop-blur-md">
             </div>
           </div>
 
-          <!-- Posisi kolom kiri (kolom 1): buka dari kiri (left-0) agar tidak meluber ke kiri -->
           <div class="relative w-full md:w-auto col-span-1" id="modeDropdownWrapper">
             <button onclick="toggleModeMenu()" type="button" class="bg-neutral-900 text-neutral-200 hover:text-white border border-neutral-800 rounded-full pl-3.5 pr-7 py-2 text-xs font-bold tracking-wide focus:outline-none flex items-center justify-between md:justify-start gap-1 transition w-full md:w-auto">
               <span id="modeFilterLabel">All Modes</span>
@@ -312,7 +308,6 @@ def dashboard():
             </div>
           </div>
 
-          <!-- Posisi kolom kanan (kolom 2): buka dari kanan (right-0) agar tidak meluber ke kanan -->
           <div class="relative w-full md:w-auto col-span-1" id="sortDropdownWrapper">
             <button onclick="toggleSortMenu()" type="button" class="bg-neutral-900 text-neutral-200 hover:text-white border border-neutral-800 rounded-full pl-3.5 pr-7 py-2 text-xs font-bold tracking-wide focus:outline-none flex items-center justify-between md:justify-start gap-1 transition w-full md:w-auto">
               <span id="sortFilterLabel">Newest</span>
@@ -757,46 +752,13 @@ def get_jobs():
     except ValueError:
         offset = 0
 
-    jobs = storage_service.load_jobs()
-
-    filtered = []
-    if days is not None:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        for job in jobs:
-            date_str = job.get("scraped_at") or job.get("posted_at")
-            if date_str:
-                try:
-                    if "T" in date_str:
-                        dt = datetime.fromisoformat(date_str)
-                    else:
-                        dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    if dt < cutoff:
-                        continue
-                except Exception:
-                    pass
-            filtered.append(job)
-    else:
-        filtered = list(jobs)
-
-    if keyword:
-        filtered = [
-            j for j in filtered
-            if keyword in (j.get("title") or "").lower()
-            or keyword in (j.get("company") or "").lower()
-            or keyword in (j.get("job_description") or j.get("description") or "").lower()
-            or keyword in (j.get("qualifications") or "").lower()
-        ]
-
-    if source:
-        filtered = [
-            j for j in filtered
-            if source == j.get("source", "").lower()
-        ]
-
-    total_count = len(filtered)
-    paginated = filtered[offset:offset + limit]
+    total_count, paginated = storage_service.query_jobs(
+        keyword=keyword,
+        source=source,
+        days=days,
+        limit=limit,
+        offset=offset
+    )
 
     return jsonify({
         "total": total_count,

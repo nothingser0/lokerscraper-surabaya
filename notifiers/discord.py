@@ -163,12 +163,15 @@ class DiscordNotifier:
         logger.info(f"Sending {len(jobs)} job(s) to Discord in batches of {_BATCH_SIZE}.")
         success = True
         batch_size = _BATCH_SIZE
-        for i in range(0, len(jobs), batch_size):
-            batch = jobs[i:i + batch_size]
+        batches = [jobs[i:i + batch_size] for i in range(0, len(jobs), batch_size)]
+        for idx, batch in enumerate(batches):
             embeds = [self._job_to_embed(j) for j in batch]
             payload = {"embeds": embeds}
             if not self._send_payload(payload):
                 success = False
+            # Delay between batches to prevent Discord webhook 429 rate limiting (max 5 req / 2s)
+            if idx < len(batches) - 1:
+                time.sleep(1.2)
         if success:
             logger.info(f"Discord notification sent successfully for {len(jobs)} job(s).")
         return success
