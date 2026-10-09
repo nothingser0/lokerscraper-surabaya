@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from config import config
 from scrapers.base import BaseScraper, new_job_dict
 from utils.text import sanitize_text, clean_description, parse_salary_label, format_job_type_id
-from engine.filter import is_it_job
+from engine.filter import matches_keywords
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +177,7 @@ class JobStreetScraper(BaseScraper):
                     # Optimization: only fetch full details for roles matching IT criteria
                     # to avoid hundreds of slow HTTP calls on non-IT roles (N+1 bottleneck).
                     candidate_job = {"title": title, "location": location_str, "work_mode": work_mode}
-                    details = self._fetch_job_detail(raw_id) if is_it_job(candidate_job) else {}
+                    details = self._fetch_job_detail(raw_id) if (matches_keywords(candidate_job) and not self.is_seen(raw_id)) else {}
 
                     # JobStreet's detail page is a JS-rendered SPA with no static
                     # full body. Fall back to the list endpoint's `teaser`

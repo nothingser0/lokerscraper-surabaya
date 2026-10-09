@@ -38,13 +38,15 @@ LOCATIONS_RE = re.compile(
     re.IGNORECASE
 )
 
-def is_it_job(job: Dict[str, Any]) -> bool:
-    """Check if job title matches IT keywords and excludes non-IT roles."""
+def matches_keywords(job: Dict[str, Any]) -> bool:
+    """Check if job title or content matches configured search keywords."""
+    if not KEYWORDS:
+        return True
     title = str(job.get("title") or "")
-    if NON_IT_EXCEPTIONS_RE.search(title):
-        if not IT_OVERRIDE_RE.search(title):
-            return False
+    # If keywords are configured, match against title dynamically
     return bool(KEYWORDS_RE.search(title))
+
+is_it_job = matches_keywords
 
 def is_valid_location(job: Dict[str, Any]) -> bool:
     """Check if job location matches allowed locations or work modes."""
@@ -56,4 +58,4 @@ def is_valid_location(job: Dict[str, Any]) -> bool:
 
 def filter_jobs(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Filter jobs by title and location criteria."""
-    return [job for job in jobs if is_it_job(job) and is_valid_location(job)]
+    return [job for job in jobs if matches_keywords(job) and is_valid_location(job)]

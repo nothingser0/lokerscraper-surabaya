@@ -22,6 +22,7 @@ COLOR_MAP = {
     "linkedin": 0x0A66C2,
     "sejutacita": 0x00B894,
     "techinasia": 0xE67E22,
+    "remoteok": 0xFF4742,
 }
 
 SOURCE_EMOJI = {
@@ -31,6 +32,7 @@ SOURCE_EMOJI = {
     "linkedin": "🔷",
     "sejutacita": "🟩",
     "techinasia": "🟧",
+    "remoteok": "🔴",
 }
 
 _FIELD_MAX_LEN = 28

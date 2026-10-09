@@ -13,7 +13,7 @@ from utils.text import (
     format_job_type_id,
     decode_glints_education,
 )
-from engine.filter import is_it_job
+from engine.filter import matches_keywords
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +222,7 @@ class GlintsScraper(BaseScraper):
                     qualifications = clean_description(job.get("requirements")) or None
                     # Optimization: fetch full detail description only if IT keywords match
                     candidate_job = {"title": title, "location": location_str, "work_mode": work_mode}
-                    detail = self._fetch_job_detail(raw_id) if is_it_job(candidate_job) else {}
+                    detail = self._fetch_job_detail(raw_id) if (matches_keywords(candidate_job) and not self.is_seen(raw_id)) else {}
                     if detail.get("job_description"):
                         job_desc = detail["job_description"]
                     if detail.get("qualifications"):

@@ -1,6 +1,6 @@
 import time
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -54,6 +54,17 @@ class BaseScraper(ABC):
         # thread-safe, and each scraper runs on its own thread in the runner.
         self._session: Optional[requests.Session] = None
         self._last_request_ts: float = 0.0
+        # Injected by ScraperRunner before each cycle so scrapers can skip
+        # re-fetching detail pages for jobs already stored (avoids the N+1
+        # bottleneck on repeat runs).
+        self.seen_ids: Set[str] = set()
+
+    def is_seen(self, raw_id: str) -> bool:
+        """True when this raw job id was already stored in a previous cycle."""
+        if not self.seen_ids:
+            return False
+        from engine.dedup import generate_job_id
+        return generate_job_id(self.source_name, raw_id) in self.seen_ids
 
     @property
     @abstractmethod

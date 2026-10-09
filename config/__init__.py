@@ -41,8 +41,6 @@ class Config:
     BASE_DIR: Path = BASE_DIR
     DATA_DIR: Path = DATA_DIR
     LOGS_DIR: Path = LOGS_DIR
-    JOBS_FILE: Path = DATA_DIR / "jobs.json"
-    SEEN_IDS_FILE: Path = DATA_DIR / "seen-ids.json"
     LOG_FILE: Path = LOGS_DIR / "scraper.log"
 
 config = Config()
@@ -71,7 +69,5 @@ SCRAPE_INTERVAL_MAX_HOURS = config.SCRAPE_INTERVAL_MAX_HOURS
 TRIGGER_TOKEN = config.TRIGGER_TOKEN
 KEYWORDS = config.KEYWORDS
 LOCATIONS = config.LOCATIONS
-JOBS_FILE = config.JOBS_FILE
-SEEN_IDS_FILE = config.SEEN_IDS_FILE
 LOG_FILE = config.LOG_FILE
 

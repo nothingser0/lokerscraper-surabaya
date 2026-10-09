@@ -21,8 +21,8 @@ class LinkedInScraper(BaseScraper):
     def __init__(self):
         super().__init__()
         # LinkedIn aggressively rate-limits unauthenticated requests (429).
-        # Space out keyword + detail requests generously to stay under the
-        # threshold, and back off hard when a 429 does occur.
+        # Space out requests generously. Detail pages for already-seen jobs are
+        # skipped (see fetch_jobs), so per-cycle request count stays low.
         self.request_delay = 30.0
         self._rate_limit_backoff = 120.0
         self.headers = {
@@ -178,8 +178,8 @@ class LinkedInScraper(BaseScraper):
                         if m:
                             applicant_count = int(m.group(1))
 
-                    # Fetch optional detail HTML
-                    details = self._fetch_job_detail(raw_id)
+                    # Skip detail fetch for jobs already stored in a prior cycle.
+                    details = {} if self.is_seen(raw_id) else self._fetch_job_detail(raw_id)
 
                     item = new_job_dict(
                         raw_id=str(raw_id),

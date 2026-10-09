@@ -45,6 +45,12 @@ class ScraperRunner:
         errors: List[str] = []
         persistent_alerts: List[str] = []
 
+        # Inject known job ids so scrapers skip re-fetching detail pages for
+        # jobs already stored (kills the N+1 cost on repeat cycles).
+        seen_ids = storage.load_seen_ids()
+        for scraper in self.scrapers:
+            scraper.seen_ids = seen_ids
+
         max_workers = getattr(config, "MAX_WORKERS", 5)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_scraper = {
