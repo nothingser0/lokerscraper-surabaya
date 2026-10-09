@@ -27,6 +27,8 @@ class StorageService:
     def _init_sqlite(self) -> None:
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute("PRAGMA synchronous=NORMAL;")
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS jobs (
                         id TEXT PRIMARY KEY,
@@ -260,8 +262,23 @@ class StorageService:
         return new_jobs
 
     def cleanup_old_jobs(self, days: int = 30) -> None:
-        """Remove jobs older than specified days."""
         self.cleanup_old_logs(days=days)
+        cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cutoff_date = cutoff_iso[:10]
+        try:
+            with sqlite3.connect(self.sqlite_file) as conn:
+                # Delete rows where created_at is older than cutoff or posted_at is older than cutoff date
+                cursor = conn.execute("""
+                    DELETE FROM jobs 
+                    WHERE (created_at IS NOT NULL AND created_at != '' AND created_at < ?)
+                       OR (created_at IS NULL AND posted_at IS NOT NULL AND posted_at != '' AND posted_at < ?)
+                """, (cutoff_iso, cutoff_date))
+                if cursor.rowcount > 0:
+                    logger.info(f"Cleaned up {cursor.rowcount} old jobs from SQLite.")
+                    conn.execute("VACUUM")
+        except Exception as e:
+            logger.error(f"Error deleting old jobs from SQLite: {e}")
+
         jobs = self.load_jobs()
         if not jobs:
             return

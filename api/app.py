@@ -1,5 +1,7 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import os
+import signal
 import sys
 import threading
 from pathlib import Path
@@ -11,9 +13,10 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler(
+        RotatingFileHandler(
             Path(__file__).resolve().parent.parent / "logs" / "scraper.log",
-            mode='a',
+            maxBytes=5 * 1024 * 1024,
+            backupCount=3,
             encoding='utf-8'
         )
     ]
@@ -988,5 +991,16 @@ def export_jobs_csv():
     )
 
 if __name__ == "__main__":
+    def _graceful_exit(signum, frame):
+        logger.info(f"Signal {signum} received. Shutting down scheduler...")
+        try:
+            scheduler.shutdown(wait=False)
+        except Exception:
+            pass
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, _graceful_exit)
+    signal.signal(signal.SIGINT, _graceful_exit)
+
     from waitress import serve
     serve(app, host="0.0.0.0", port=5000, threads=8)

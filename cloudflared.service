@@ -1,0 +1,19 @@
+[Unit]
+Description=Cloudflare Tunnel for LokerScraper Surabaya
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# cloudflared binary can be installed via: sudo apt install cloudflared
+# or downloaded from: https://github.com/cloudflare/cloudflared/releases
+ExecStart=/usr/local/bin/cloudflared tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+EnvironmentFile=%h/lokerscraper-surabaya/.env
+Restart=always
+RestartSec=10
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
