@@ -24,8 +24,13 @@ class Config:
     # Comma-separated list of Discord webhook URLs (supports notifying multiple
     # channels/servers). Falls back to the single DISCORD_WEBHOOK_URL.
     DISCORD_WEBHOOK_URLS: List[str] = field(default_factory=lambda: [u.strip() for u in os.getenv("DISCORD_WEBHOOK_URLS", "").split(",") if u.strip()])
+    # Dedicated channel for system alerts (scraper failures). Falls back to the
+    # job webhooks when unset, so existing setups keep working.
+    DISCORD_ERROR_WEBHOOK_URL: str = field(default_factory=lambda: os.getenv("DISCORD_ERROR_WEBHOOK_URL", ""))
     TELEGRAM_BOT_TOKEN: str = field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN", ""))
     TELEGRAM_CHAT_ID: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_ID", ""))
+    # Optional separate Telegram chat for system alerts (falls back to TELEGRAM_CHAT_ID).
+    TELEGRAM_ERROR_CHAT_ID: str = field(default_factory=lambda: os.getenv("TELEGRAM_ERROR_CHAT_ID", ""))
     DEEPL_API_KEY: str = field(default_factory=lambda: os.getenv("DEEPL_API_KEY", ""))
     DEEPL_API_URL: str = field(default_factory=lambda: os.getenv("DEEPL_API_URL", "https://api-free.deepl.com/v2/translate"))
     SCRAPE_INTERVAL_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_HOURS", "6")))
@@ -61,8 +66,10 @@ def random_scrape_interval_hours() -> int:
 
 DISCORD_WEBHOOK_URL = config.DISCORD_WEBHOOK_URL
 DISCORD_WEBHOOK_URLS = config.DISCORD_WEBHOOK_URLS
+DISCORD_ERROR_WEBHOOK_URL = config.DISCORD_ERROR_WEBHOOK_URL
 TELEGRAM_BOT_TOKEN = config.TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID = config.TELEGRAM_CHAT_ID
+TELEGRAM_ERROR_CHAT_ID = config.TELEGRAM_ERROR_CHAT_ID
 DEEPL_API_KEY = config.DEEPL_API_KEY
 DEEPL_API_URL = config.DEEPL_API_URL
 SCRAPE_INTERVAL_HOURS = config.SCRAPE_INTERVAL_HOURS

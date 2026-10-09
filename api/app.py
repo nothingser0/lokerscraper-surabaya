@@ -195,28 +195,38 @@ def dashboard():
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .marquee-track {
       position: absolute;
-      top: 0;
+      top: 50%;
       left: 50%;
       white-space: nowrap;
       will-change: transform;
     }
-    /* Right reads top-to-bottom (glyphs rotated clockwise), left reads
-       bottom-to-top (counter-clockwise) — matching the original rotate(±90deg). */
-    /* Second declaration wins where supported; the invalid value is ignored
-       elsewhere so the strip still renders vertical instead of horizontal. */
-    /* Each track holds the phrase twice, so shifting by exactly one copy (50% of
-       the track) lands on identical pixels and the loop has no visible seam. */
-    .marquee-left  { writing-mode: vertical-rl; writing-mode: sideways-lr; animation: marqueeDown 65s linear infinite; }
-    .marquee-right { writing-mode: vertical-rl; animation: marqueeUp   65s linear infinite; }
-    @keyframes marqueeDown { from { transform: translateX(-50%) translateY(-50%); } to { transform: translateX(-50%) translateY(0); } }
-    @keyframes marqueeUp   { from { transform: translateX(-50%) translateY(0); }    to { transform: translateX(-50%) translateY(-50%); } }
+    /* Sisi kiri: rotasi -90deg, arah hanyut dari ATAS ke BAWAH.
+       Sisi kanan: rotasi 90deg, arah hanyut dari BAWAH ke ATAS.
+       Masing-masing berisi 2 salinan kalimat identik: pergeseran tepat 50%
+       menghasilkan seamless loop tanpa hentakan. */
+    .marquee-left {
+      transform: translate(-50%, -50%) rotate(-90deg);
+      animation: marqueeLeftDown 65s linear infinite;
+    }
+    .marquee-right {
+      transform: translate(-50%, -50%) rotate(90deg);
+      animation: marqueeRightUp 65s linear infinite;
+    }
+    @keyframes marqueeLeftDown {
+      0%   { transform: translate(-50%, -50%) rotate(-90deg) translateX(25%); }
+      100% { transform: translate(-50%, -50%) rotate(-90deg) translateX(-25%); }
+    }
+    @keyframes marqueeRightUp {
+      0%   { transform: translate(-50%, -50%) rotate(90deg) translateX(25%); }
+      100% { transform: translate(-50%, -50%) rotate(90deg) translateX(-25%); }
+    }
   </style>
 </head>
 <body class="p-3 sm:p-6 md:p-10 antialiased selection:bg-limepill selection:text-black noise-bg min-h-screen w-full overflow-x-hidden">
   
   <!-- Left Motivation: Visible on all desktop screens (1280px+) -->
   <div class="marquee-sidebar fixed left-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
-    <div class="marquee-track marquee-left text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-black/[0.26] uppercase select-none flex items-center">
+    <div class="marquee-track marquee-left text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-black/[0.26] uppercase select-none">
       <span class="font-mono text-xs tracking-widest text-neutral-400 font-semibold">[01/EAST-JAVA]</span>
       <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
       <span>BUILD THE FUTURE</span>
@@ -238,7 +248,7 @@ def dashboard():
 
   <!-- Right Motivation: Visible on all desktop screens (1280px+) -->
   <div class="marquee-sidebar fixed right-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
-    <div class="marquee-track marquee-right text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-black/[0.26] uppercase select-none flex items-center">
+    <div class="marquee-track marquee-right text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-black/[0.26] uppercase select-none">
       <span class="font-mono text-xs tracking-widest text-neutral-400 font-semibold">[02/ENGINEERING]</span>
       <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
       <span>CREATE MASTERY</span>
