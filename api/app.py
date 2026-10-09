@@ -134,7 +134,7 @@ def dashboard():
     /* Lime highlight behind the animated keyword for emphasis */
     .hero-highlight {
       background: linear-gradient(180deg, transparent 62%, #D4F542 62%);
-      padding: 0 0.08em;
+      padding: 0 0.08em 0 0;
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone;
     }
@@ -194,6 +194,9 @@ def dashboard():
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .marquee-track {
+      position: absolute;
+      top: 0;
+      left: 50%;
       white-space: nowrap;
       will-change: transform;
     }
@@ -201,10 +204,12 @@ def dashboard():
        bottom-to-top (counter-clockwise) — matching the original rotate(±90deg). */
     /* Second declaration wins where supported; the invalid value is ignored
        elsewhere so the strip still renders vertical instead of horizontal. */
-    .marquee-left  { writing-mode: vertical-rl; writing-mode: sideways-lr; animation: marqueeDown 30s linear infinite; }
-    .marquee-right { writing-mode: vertical-rl; animation: marqueeUp   30s linear infinite; }
-    @keyframes marqueeDown { from { transform: translateY(-60vh); } to { transform: translateY(60vh); } }
-    @keyframes marqueeUp   { from { transform: translateY(60vh); }  to { transform: translateY(-60vh); } }
+    /* Each track holds the phrase twice, so shifting by exactly one copy (50% of
+       the track) lands on identical pixels and the loop has no visible seam. */
+    .marquee-left  { writing-mode: vertical-rl; writing-mode: sideways-lr; animation: marqueeDown 60s linear infinite; }
+    .marquee-right { writing-mode: vertical-rl; animation: marqueeUp   60s linear infinite; }
+    @keyframes marqueeDown { from { transform: translateX(-50%) translateY(-50%); } to { transform: translateX(-50%) translateY(0); } }
+    @keyframes marqueeUp   { from { transform: translateX(-50%) translateY(0); }    to { transform: translateX(-50%) translateY(-50%); } }
   </style>
 </head>
 <body class="p-3 sm:p-6 md:p-10 antialiased selection:bg-limepill selection:text-black noise-bg min-h-screen w-full overflow-x-hidden">
@@ -212,14 +217,14 @@ def dashboard():
   <!-- Left Motivation: Visible on all desktop screens (1280px+) -->
   <div class="marquee-sidebar fixed left-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
     <div class="marquee-track marquee-left text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.22] uppercase select-none">
-      BUILD THE FUTURE • SOLVE REAL PROBLEMS • NEVER SETTLE
+      BUILD THE FUTURE • SOLVE REAL PROBLEMS • NEVER SETTLE • BUILD THE FUTURE • SOLVE REAL PROBLEMS • NEVER SETTLE •
     </div>
   </div>
 
   <!-- Right Motivation: Visible on all desktop screens (1280px+) -->
   <div class="marquee-sidebar fixed right-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
     <div class="marquee-track marquee-right text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.22] uppercase select-none">
-      CREATE MASTERY • CODE WITH PURPOSE • SHIP WITH PRIDE
+      CREATE MASTERY • CODE WITH PURPOSE • SHIP WITH PRIDE • CREATE MASTERY • CODE WITH PURPOSE • SHIP WITH PRIDE •
     </div>
   </div>
 
@@ -647,7 +652,8 @@ def dashboard():
           ).join('');
         }
         if (data.keywords && data.keywords.length) {
-          const words = data.keywords.map(k => k.charAt(0).toUpperCase() + k.slice(1));
+          const toTitleCase = (s) => (s || '').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          const words = data.keywords.map(toTitleCase);
           initTypewriter(words);
           document.getElementById('envKeywords').innerHTML = data.keywords.slice(0, 10).map(k => 
             `<span class="bg-limepill text-black border border-black/10 px-3 py-1 rounded-full font-extrabold tracking-tight shadow-sm whitespace-nowrap" style="font-size:${chipFontSize(k)}">${k}</span>`
