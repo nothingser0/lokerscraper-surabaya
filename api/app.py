@@ -1,4 +1,5 @@
 import logging
+import collections
 from logging.handlers import RotatingFileHandler
 import os
 import signal
@@ -85,14 +86,17 @@ scheduler.start()
 @app.route("/", methods=["GET"])
 def dashboard():
     """Serve a clean Swiss/editorial modern dashboard inspired by the reference design."""
-    return """<!DOCTYPE html>
+    from flask import make_response
+    resp = make_response("""<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
   <title>LokerScraper Surabaya</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='10' fill='%23111111'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23D4F542'/%3E%3Cpath d='M16 4v4M16 24v4M4 16h4M24 16h4' stroke='%23D4F542' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
-  <link rel="preload" as="image" href="/static/hero.gif">
+  <link rel="preload" as="image" href="/static/hero_poster.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -116,8 +120,26 @@ def dashboard():
     body { background-color: #ECECE8; color: #111111; }
     .display-title { letter-spacing: -0.04em; line-height: 0.92; font-weight: 800; }
     .pill-btn { border-radius: 9999px; }
+    /* Fixed height for the animated keyword line. Keywords are dynamic (loaded
+       from .env) and each is auto-shrunk to fit, so the line must NOT derive its
+       height from the current word/font — otherwise the whole hero row (and the
+       "Active Opportunities" section below it) jumps on every empty/switch. */
+    .hero-word-line { height: 66px; line-height: 66px; }
+    @media (min-width: 640px) { .hero-word-line { height: 76px; line-height: 76px; } }
+    @media (min-width: 768px) { .hero-word-line { height: 102px; line-height: 102px; } }
+    .hero-word-line #heroWordMain { line-height: inherit; }
+    /* When text is erased between words, keep an invisible non-breaking space
+       so the inline-block line box never collapses down to 0 height. */
+    #heroWordMain:empty::before { content: '\00a0'; visibility: hidden; }
+    /* Lime highlight behind the animated keyword for emphasis */
+    .hero-highlight {
+      background: linear-gradient(180deg, transparent 62%, #D4F542 62%);
+      padding: 0 0.08em;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
     .noise-bg {
-      background-image: radial-gradient(rgba(0,0,0,0.06) 1px, transparent 0);
+      background-image: radial-gradient(rgba(0,0,0,0.09) 1px, transparent 0);
       background-size: 24px 24px;
     }
     /* Badge subtle pulse & shimmer */
@@ -150,13 +172,19 @@ def dashboard():
     @keyframes blink {
       to { visibility: hidden; }
     }
-    /* Always visible on desktop screens (1024px+), hidden only on mobile/tablet */
+    /* Vertical motivation strips. Native vertical text avoids the subpixel blur
+       of rotate(90deg), the mask fades both ends instead of hard-clipping, and
+       because verticality comes from writing-mode (not a transform) the text
+       still renders correctly when animations are blocked by an extension. */
     .marquee-sidebar {
-      display: flex !important;
-      opacity: 1 !important;
-      visibility: visible !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       pointer-events: none;
       z-index: 0;
+      overflow: hidden;
+      -webkit-mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+      mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
     }
     @media (max-width: 1279px) {
       .marquee-sidebar {
@@ -165,46 +193,32 @@ def dashboard():
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    /* Left (-90 deg): Jalan dari Atas ke Bawah */
-    @keyframes scrollKiriDown {
-      0% { transform: translate(-50%, -50%) rotate(-90deg) translateX(70vh); }
-      100% { transform: translate(-50%, -50%) rotate(-90deg) translateX(-70vh); }
-    }
-    /* Right (90 deg): Jalan dari Bawah ke Atas */
-    @keyframes scrollKananUp {
-      0% { transform: translate(-50%, -50%) rotate(90deg) translateX(70vh); }
-      100% { transform: translate(-50%, -50%) rotate(90deg) translateX(-70vh); }
-    }
-    .text-kiri-sync {
-      position: absolute;
-      top: 50%;
-      left: 50%;
+    .marquee-track {
       white-space: nowrap;
       will-change: transform;
-      animation: scrollKiriDown 24s linear infinite;
     }
-    .text-kanan-sync {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      white-space: nowrap;
-      will-change: transform;
-      animation: scrollKananUp 24s linear infinite;
-    }
+    /* Right reads top-to-bottom (glyphs rotated clockwise), left reads
+       bottom-to-top (counter-clockwise) — matching the original rotate(±90deg). */
+    /* Second declaration wins where supported; the invalid value is ignored
+       elsewhere so the strip still renders vertical instead of horizontal. */
+    .marquee-left  { writing-mode: vertical-rl; writing-mode: sideways-lr; animation: marqueeDown 30s linear infinite; }
+    .marquee-right { writing-mode: vertical-rl; animation: marqueeUp   30s linear infinite; }
+    @keyframes marqueeDown { from { transform: translateY(-60vh); } to { transform: translateY(60vh); } }
+    @keyframes marqueeUp   { from { transform: translateY(60vh); }  to { transform: translateY(-60vh); } }
   </style>
 </head>
 <body class="p-3 sm:p-6 md:p-10 antialiased selection:bg-limepill selection:text-black noise-bg min-h-screen w-full overflow-x-hidden">
   
   <!-- Left Motivation: Visible on all desktop screens (1280px+) -->
-  <div class="marquee-sidebar fixed left-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] pointer-events-none select-none overflow-hidden">
-    <div class="text-kiri-sync text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.16] uppercase select-none">
+  <div class="marquee-sidebar fixed left-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
+    <div class="marquee-track marquee-left text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.22] uppercase select-none">
       BUILD THE FUTURE • SOLVE REAL PROBLEMS • NEVER SETTLE
     </div>
   </div>
 
   <!-- Right Motivation: Visible on all desktop screens (1280px+) -->
-  <div class="marquee-sidebar fixed right-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] pointer-events-none select-none overflow-hidden">
-    <div class="text-kanan-sync text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.16] uppercase select-none">
+  <div class="marquee-sidebar fixed right-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
+    <div class="marquee-track marquee-right text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.22] uppercase select-none">
       CREATE MASTERY • CODE WITH PURPOSE • SHIP WITH PRIDE
     </div>
   </div>
@@ -240,7 +254,7 @@ def dashboard():
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
       
       <!-- Left Large Card (Typography & Stats) -->
-      <div class="lg:col-span-8 bg-[#F8F8F5] rounded-3xl p-5 sm:p-7 md:p-10 border border-black/5 shadow-sm flex flex-col justify-between space-y-6 md:space-y-8">
+      <div class="lg:col-span-8 bg-[#F8F8F5] rounded-3xl p-5 sm:p-7 md:p-9 border border-black/5 shadow-sm flex flex-col justify-start space-y-4 md:space-y-5">
         <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
             <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neutral-900 border border-neutral-800 text-white shadow-xs transition cursor-default">
@@ -282,66 +296,90 @@ def dashboard():
 
         <div class="space-y-1.5 max-w-full">
           <h1 class="display-title font-black tracking-tight text-neutral-900 leading-none">
-            <div class="text-5xl sm:text-7xl md:text-8xl flex items-baseline justify-start min-h-[1.05em] leading-none overflow-hidden">
-              <span id="heroWordMain" class="inline-block whitespace-nowrap text-left">Developer</span><span class="cursor-blink"></span>
+            <div class="hero-word-line text-6xl sm:text-7xl md:text-8xl flex items-center justify-start leading-none overflow-hidden">
+              <span id="heroWordMain" class="hero-highlight inline-block whitespace-nowrap text-left leading-none">Developer</span><span class="cursor-blink"></span>
             </div>
-            <div class="flex items-end gap-3 text-4xl sm:text-6xl md:text-7xl mt-1">
-              <span class="leading-none pb-1 sm:pb-1.5">Jobs</span>
-              <span class="inline-flex items-center justify-center bg-black text-limepill font-black px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-sm sm:text-xl md:text-2xl shadow-sm tracking-normal leading-none mb-1 sm:mb-1.5">
+            <div class="flex items-end gap-2.5 sm:gap-3 text-5xl sm:text-6xl md:text-7xl mt-1">
+              <span class="leading-none">Jobs</span>
+              <span class="inline-flex items-center justify-center bg-black text-limepill font-black px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-base sm:text-xl md:text-2xl shadow-sm tracking-normal leading-none">
               <span id="statTotal">-</span>
             </span>
             </div>
           </h1>
-          <h2 id="heroSubtitle" class="display-title text-2xl sm:text-4xl md:text-5xl font-bold text-neutral-400 pt-0.5 pb-1">
+          <h2 id="heroSubtitle" class="display-title text-3xl sm:text-4xl md:text-5xl font-bold text-neutral-400 pt-0.5">
             Surabaya & Remote
           </h2>
         </div>
 
         <!-- Dynamic Tags from ENV: Matching Reference Poster Typography -->
-        <div class="pt-2 border-t border-black/5 space-y-2 font-sans">
-          <div class="space-y-1.5">
+        <div class="pt-2.5 border-t border-black/5 font-sans min-w-0">
+          <div class="bg-black/[0.04] border border-black/[0.06] rounded-2xl p-3 space-y-2.5 min-w-0">
+          <div class="space-y-1.5 min-w-0">
             <div class="font-bold tracking-widest text-[10px] text-neutral-400 uppercase">LOCATIONS</div>
-            <div id="envLocations" class="flex flex-wrap gap-1.5">Loading...</div>
+            <div id="envLocations" class="flex flex-wrap gap-1.5 min-w-0">Loading...</div>
           </div>
-          <div class="space-y-1.5">
+          <div class="space-y-1.5 min-w-0">
             <div class="font-bold tracking-widest text-[10px] text-neutral-400 uppercase">KEYWORDS</div>
-            <div id="envKeywords" class="flex flex-wrap gap-1.5">Loading...</div>
+            <div id="envKeywords" class="flex flex-wrap gap-1.5 min-w-0">Loading...</div>
+          </div>
           </div>
         </div>
 
         <!-- 3 & 4. Bottom Stats: Last Update Real & Platform Counter Berkontras Jelas -->
-        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-4 border-t border-black/5 text-xs">
-          <div class="sm:col-span-4">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-2.5 border-t border-black/5 text-xs">
+          <div class="sm:col-span-3">
             <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Last Updated</div>
             <div id="statUpdated" class="font-semibold text-neutral-800 mt-1">-</div>
           </div>
           <div class="sm:col-span-2">
             <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Cycle Status</div>
             <div id="statScraped" class="font-semibold text-neutral-800 mt-1">-</div>
+            <div id="statRetention" class="text-[10px] text-neutral-400 mt-0.5" title="Old jobs are deleted automatically to keep storage flat">-</div>
           </div>
-          <div class="sm:col-span-6">
+          <div class="sm:col-span-7">
             <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Platforms</div>
-            <div id="statSources" class="grid grid-cols-3 sm:grid-cols-3 gap-1.5 mt-1.5">-</div>
+            <div id="statSources" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">-</div>
           </div>
         </div>
       </div>
 
-      <!-- Right Visual Hero Card: Real programmer typing at workstation -->
-      <div class="lg:col-span-4 bg-neutral-900 rounded-3xl overflow-hidden relative min-h-[260px] sm:min-h-[320px] border border-black/10 shadow-sm group">
-        <img src="/static/hero.gif" alt="Professional Developer at Work" loading="eager" decoding="sync" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-700 brightness-90">
-        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-        <div class="absolute top-5 right-5 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-[11px] font-semibold text-limepill">
-          <span class="w-2 h-2 rounded-full bg-limepill radar-dot"></span>
-          <span>Online Radar</span>
-        </div>
-        <div class="absolute bottom-6 left-6 right-6 text-white space-y-2">
-          <div id="platformCountBadge" class="inline-block px-2.5 py-0.5 rounded-full bg-limepill text-black text-[10px] font-black uppercase tracking-wider">
-            Multi-Platform
+      <!-- Right Column: Visual Hero Card + Live Log Terminal -->
+      <div class="lg:col-span-4 flex flex-col gap-4 min-h-0">
+
+        <div class="bg-neutral-900 rounded-3xl overflow-hidden relative min-h-[180px] sm:min-h-[220px] lg:min-h-0 lg:h-[230px] shrink-0 border border-black/10 shadow-sm group">
+          <video autoplay loop muted playsinline preload="metadata" poster="/static/hero_poster.jpg"
+                 class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-700 brightness-90">
+            <source src="/static/hero_small.mp4" type="video/mp4">
+          </video>
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+          <div class="absolute top-5 right-5 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-[11px] font-semibold text-limepill">
+            <span class="w-2 h-2 rounded-full bg-limepill radar-dot"></span>
+            <span>Online Radar</span>
           </div>
-          <p id="platformNamesBanner" class="text-sm font-semibold leading-snug text-neutral-100">
-            Continuous automated aggregation across registered platforms.
-          </p>
+          <div class="absolute bottom-5 left-6 right-6 text-white space-y-2">
+            <div id="platformCountBadge" class="inline-block px-2.5 py-0.5 rounded-full bg-limepill text-black text-[10px] font-black uppercase tracking-wider">
+              Multi-Platform
+            </div>
+            <p id="platformNamesBanner" class="text-sm font-semibold leading-snug text-neutral-100">
+              Continuous automated aggregation across registered platforms.
+            </p>
+          </div>
         </div>
+
+        <!-- Live scraper log terminal -->
+        <div class="bg-[#0B0B0B] rounded-3xl border border-black/10 shadow-sm overflow-hidden flex flex-col h-[260px] lg:h-auto lg:flex-1 lg:basis-0 lg:min-h-[200px]">
+          <div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-neutral-800 bg-[#151515] shrink-0">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#FF5F56]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#27C93F]"></span>
+            <span class="ml-2 text-[11px] font-semibold text-neutral-400 font-mono">scraper.log</span>
+            <span class="ml-auto flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-limepill">
+              <span class="w-1.5 h-1.5 rounded-full bg-limepill radar-dot"></span>live
+            </span>
+          </div>
+          <div id="logTerminal" class="flex-1 min-h-0 overflow-hidden px-3 py-2.5 font-mono text-[10px] leading-tight text-neutral-400 space-y-0.5"></div>
+        </div>
+
       </div>
 
     </div>
@@ -351,16 +389,16 @@ def dashboard():
       
       <!-- Section Header -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-800 pb-5">
-        <div>
-          <div class="inline-block px-3 py-1 rounded-full border border-neutral-700 text-[11px] uppercase tracking-wider text-neutral-400 mb-2">Curated Stream</div>
-          <h3 class="text-2xl md:text-3xl font-bold tracking-tight">Active Opportunities</h3>
+        <div class="flex flex-col items-start gap-1.5 min-w-0">
+          <span class="inline-block px-2.5 py-0.5 rounded-full border border-neutral-700 text-[10px] uppercase tracking-wider text-neutral-400 shrink-0">Curated Stream</span>
+          <h3 class="text-2xl md:text-3xl font-bold tracking-tight whitespace-nowrap">Active Opportunities</h3>
         </div>
         <div class="w-full md:w-auto flex flex-col md:flex-row md:items-center gap-2.5">
           <div class="grid grid-cols-2 sm:grid-cols-4 md:flex md:items-center gap-2 w-full md:w-auto">
-          <button id="bookmarkToggle" onclick="toggleBookmarksOnly()" class="bg-neutral-900 text-neutral-200 hover:text-white border border-neutral-800 rounded-full pl-3.5 pr-4 py-2 text-xs font-bold tracking-wide focus:outline-none flex items-center justify-between md:justify-start gap-1.5 transition w-full md:w-auto">
+          <button id="bookmarkToggle" onclick="toggleBookmarksOnly()" class="bg-neutral-900 text-neutral-200 hover:text-white border border-neutral-800 rounded-full pl-3.5 pr-4 py-2 text-xs font-bold tracking-wide focus:outline-none flex items-center gap-1.5 transition w-full md:w-auto">
             <span class="w-2 h-2 rounded-full border border-neutral-500" id="bookmarkIndicator"></span>
             <span>Saved</span>
-            <span id="bookmarkCount" class="text-[10px] text-neutral-400 font-mono">(0)</span>
+            <span id="bookmarkCount" class="ml-auto md:ml-0 text-[10px] text-limepill font-mono font-bold">0</span>
           </button>
           <div class="relative w-full md:w-auto col-span-1" id="customDropdownWrapper">
             <button id="sourceFilterBtn" onclick="togglePlatformMenu()" type="button" class="bg-neutral-900 text-neutral-200 hover:text-white border border-neutral-800 rounded-full pl-3.5 pr-7 py-2 text-xs font-bold tracking-wide focus:outline-none flex items-center justify-between md:justify-start gap-1 transition w-full md:w-auto">
@@ -413,6 +451,18 @@ def dashboard():
       <div id="paginationContainer" class="pt-6 pb-6 sm:pb-3 border-t border-neutral-800 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-neutral-400">
         <div id="paginationInfo">Showing 0-0 of 0</div>
         <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1 bg-neutral-900 border border-neutral-800 rounded-full pl-3 pr-1 py-1 mr-1">
+            <label for="pageJump" class="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Go</label>
+            <input id="pageJump" type="number" min="1" inputmode="numeric" placeholder="#"
+                   onkeydown="if(event.key==='Enter'){jumpToPage(this.value)}"
+                   class="w-10 bg-transparent text-white text-xs font-semibold text-center focus:outline-none [appearance:textfield] [&amp;::-webkit-outer-spin-button]:appearance-none [&amp;::-webkit-inner-spin-button]:appearance-none">
+            <button onclick="jumpToPage(document.getElementById('pageJump').value)" aria-label="Go to page" class="w-6 h-6 rounded-full bg-limepill text-black hover:brightness-95 transition flex items-center justify-center p-0">
+              <svg class="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+          </div>
           <button id="prevBtn" onclick="changePage(-1)" class="w-9 h-9 rounded-full bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 disabled:hover:bg-neutral-800 flex items-center justify-center text-white transition">
             ‹
           </button>
@@ -425,12 +475,34 @@ def dashboard():
 
     </div>
 
+    <!-- Bottom Footer -->
+    <footer class="pt-8 pb-14 border-t border-black/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-neutral-500">
+      <div class="flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-limepill radar-dot shrink-0"></span>
+          <span class="font-bold text-neutral-800">LokerScraper Surabaya</span>
+        </div>
+        <span class="hidden sm:inline text-neutral-300">•</span>
+        <span class="text-neutral-400 text-[11px] sm:text-xs">Automated Regional Tech Aggregator</span>
+      </div>
+      <div class="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 text-neutral-400 text-[11px]">
+        <span>SQLite WAL • Auto-Prune 30d</span>
+        <div class="flex items-center gap-2 text-neutral-400">
+          <span class="hidden sm:inline">•</span>
+          <a href="/health" target="_blank" class="hover:text-neutral-700 transition">/health</a>
+          <span>•</span>
+          <a href="/api/stats" target="_blank" class="hover:text-neutral-700 transition">/api/stats</a>
+        </div>
+      </div>
+    </footer>
+
   </div>
 
   <script>
     let allJobs = [];
     let currentPage = 1;
     const pageSize = 10;
+    let filteredTotal = 0;   // last filtered result size, used by jumpToPage
     let showBookmarksOnly = false;
     let selectedPlatform = '';
     let selectedMode = '';
@@ -518,11 +590,14 @@ def dashboard():
       currentPage = 1;
       const btn = document.getElementById('bookmarkToggle');
       const indicator = document.getElementById('bookmarkIndicator');
+      const badge = document.getElementById('bookmarkCount');
       if (showBookmarksOnly) {
-        btn.className = 'bg-limepill text-black font-bold border border-limepill rounded-full pl-3.5 pr-4 py-2 text-xs tracking-wide focus:outline-none flex items-center justify-between md:justify-start gap-1.5 transition w-full md:w-auto';
+        btn.className = 'bg-limepill text-black font-bold border border-limepill rounded-full pl-3.5 pr-4 py-2 text-xs tracking-wide focus:outline-none flex items-center gap-1.5 transition w-full md:w-auto';
+        badge.className = 'ml-auto md:ml-0 text-[10px] text-black/60 font-mono font-bold';
         if (indicator) indicator.className = 'w-2 h-2 rounded-full bg-black';
       } else {
-        btn.className = 'bg-neutral-900 text-neutral-200 hover:text-white border border-neutral-800 rounded-full pl-3.5 pr-4 py-2 text-xs font-bold tracking-wide focus:outline-none flex items-center justify-between md:justify-start gap-1.5 transition w-full md:w-auto';
+        btn.className = 'bg-neutral-900 text-neutral-200 hover:text-white border border-neutral-800 rounded-full pl-3.5 pr-4 py-2 text-xs font-bold tracking-wide focus:outline-none flex items-center gap-1.5 transition w-full md:w-auto';
+        badge.className = 'ml-auto md:ml-0 text-[10px] text-limepill font-mono font-bold';
         if (indicator) indicator.className = 'w-2 h-2 rounded-full border border-neutral-500';
       }
       renderJobs();
@@ -553,28 +628,42 @@ def dashboard():
         document.getElementById('statTotal').innerText = data.totalJobs || '0';
         document.getElementById('statUpdated').innerText = formatUpdatedDate(data.lastUpdated);
         document.getElementById('statScraped').innerText = data.lastScrapedAt ? formatUpdatedDate(data.lastScrapedAt) : 'Running normally';
+        const retEl = document.getElementById('statRetention');
+        if (retEl && data.retentionDays) {
+          const mb = data.dbBytes ? ` · ${(data.dbBytes / 1024 / 1024).toFixed(1)} MB` : '';
+          retEl.innerText = `Auto-prune ${data.retentionDays}d${mb}`;
+        }
         
         // Dynamic Locations & Keywords from ENV
         if (data.locations && data.locations.length) {
-          const primaryLoc = data.locations[0].charAt(0).toUpperCase() + data.locations[0].slice(1);
-          document.getElementById('heroSubtitle').innerText = `${primaryLoc} & Remote`;
+          const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+          const primaryLoc = cap(data.locations[0]);
+          // Prefer a work-mode style entry (remote/hybrid); never repeat another city.
+          const modeEntry = data.locations.find(l => ['remote', 'hybrid', 'wfh'].includes(l.toLowerCase()));
+          document.getElementById('heroSubtitle').innerText = `${primaryLoc} & ${cap(modeEntry || 'remote')}`;
           document.getElementById('heroStreamBadge').innerText = `${primaryLoc} Opportunities`;
           document.getElementById('envLocations').innerHTML = data.locations.map(l => 
-            `<span class="bg-black/5 border border-black/10 px-3 py-1 rounded-full capitalize font-extrabold text-[11px] tracking-tight text-neutral-500">${l}</span>`
+            `<span class="bg-white border border-black/10 px-3 py-1 rounded-full capitalize font-extrabold tracking-tight text-neutral-600 shadow-sm" style="font-size:${chipFontSize(l)}">${l}</span>`
           ).join('');
         }
         if (data.keywords && data.keywords.length) {
-          const primaryKw = data.keywords[0].charAt(0).toUpperCase() + data.keywords[0].slice(1);
-          initTypewriter(primaryKw);
+          const words = data.keywords.map(k => k.charAt(0).toUpperCase() + k.slice(1));
+          initTypewriter(words);
           document.getElementById('envKeywords').innerHTML = data.keywords.slice(0, 10).map(k => 
-            `<span class="bg-limepill text-black border border-black/10 px-3 py-1 rounded-full font-extrabold text-[11px] tracking-tight shadow-sm">${k}</span>`
+            `<span class="bg-limepill text-black border border-black/10 px-3 py-1 rounded-full font-extrabold tracking-tight shadow-sm whitespace-nowrap" style="font-size:${chipFontSize(k)}">${k}</span>`
           ).join('') + (data.keywords.length > 10 ? `<span class="text-neutral-500 text-[11px] font-bold self-center">+${data.keywords.length - 10} more</span>` : '');
         }
 
         const platforms = data.platforms || (data.sourceCounts ? Object.keys(data.sourceCounts) : []);
         if (data.sourceCounts) {
+          // Force exactly 2 rows: columns = ceil(count / 2). Keeps the layout
+          // stable no matter how many platforms get registered later.
+          const gridEl = document.getElementById('statSources');
+          const rows = 2;
+          const cols = Math.max(2, Math.ceil(platforms.length / rows));
+          gridEl.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
           document.getElementById('statSources').innerHTML = Object.entries(data.sourceCounts)
-            .map(([k, v]) => `<span class="flex items-center justify-between bg-neutral-900 text-neutral-200 border border-neutral-700/80 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide"><span class="truncate">${k}</span><span class="bg-limepill text-black font-black px-1.5 py-0.2 rounded-full text-[10px] ml-auto shrink-0">${v}</span></span>`).join('');
+            .map(([k, v]) => `<span class="flex items-center justify-between bg-neutral-900 text-neutral-200 border border-neutral-700/80 px-2 py-1 rounded-full text-[11px] font-semibold tracking-wide min-w-0"><span class="truncate">${k}</span><span class="bg-limepill text-black font-black px-1.5 py-0.2 rounded-full text-[10px] ml-auto shrink-0">${v}</span></span>`).join('');
           
           if (platforms.length) {
             document.getElementById('platformCountBadge').innerText = `${platforms.length} Aggregators`;
@@ -674,6 +763,7 @@ def dashboard():
       });
 
       const total = filtered.length;
+      filteredTotal = total;
       const totalPages = Math.ceil(total / pageSize) || 1;
       if (currentPage > totalPages) currentPage = totalPages;
       if (currentPage < 1) currentPage = 1;
@@ -687,6 +777,8 @@ def dashboard():
       document.getElementById('pageBadge').innerText = `Page ${currentPage} / ${totalPages}`;
       document.getElementById('prevBtn').disabled = currentPage <= 1;
       document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+      const jump = document.getElementById('pageJump');
+      if (jump) { jump.max = totalPages; jump.placeholder = `1-${totalPages}`; }
 
       const el = document.getElementById('jobsList');
       if (!pageJobs.length) {
@@ -728,11 +820,36 @@ def dashboard():
     function changePage(delta) {
       currentPage += delta;
       renderJobs();
+      scrollToFeed();
+    }
+
+    // Jump to an explicit page number (clamped to the available range).
+    function jumpToPage(value) {
+      const totalPages = Math.ceil(filteredTotal / pageSize) || 1;
+      const n = Math.floor(Number(value));
+      if (!Number.isFinite(n) || n < 1) return;
+      currentPage = Math.min(n, totalPages);
+      renderJobs();
+      scrollToFeed();
+    }
+
+    function scrollToFeed() {
       const target = document.getElementById('curatedSection');
-      if (target) {
-        const topOffset = target.getBoundingClientRect().top + window.pageYOffset - (window.innerHeight * 0.06);
-        window.scrollTo({ top: topOffset, behavior: 'smooth' });
-      }
+      if (!target) return;
+      const topOffset = target.getBoundingClientRect().top + window.pageYOffset - (window.innerHeight * 0.06);
+      window.scrollTo({ top: topOffset, behavior: 'smooth' });
+    }
+
+    // Auto-shrink font for long chip text so nothing overflows the card.
+    function chipFontSize(text) {
+      const len = (text || '').length;
+      if (len <= 10) return '11px';
+      if (len <= 14) return '10px';
+      if (len <= 18) return '9px';
+      return '8px';
+    }
+    function chipClass(text) {
+      return `inline-flex items-center px-3 py-1 rounded-full font-extrabold tracking-tight shadow-sm whitespace-nowrap`;
     }
 
     function showToast(msg, isError = false) {
@@ -820,41 +937,118 @@ def dashboard():
     }
 
     let typewriterTimeout = null;
-    function initTypewriter(word) {
+    function initTypewriter(words) {
       if (typewriterTimeout) clearTimeout(typewriterTimeout);
+      if (!Array.isArray(words)) words = [words];
+      if (!words.length) return;
       const target = document.getElementById('heroWordMain');
+      let wordIdx = 0;
       let idx = 0;
       let isDeleting = false;
 
+      // Shrink the hero word only when the FULL word is too wide for the card,
+      // so long keywords like "quality assurance" never clip at the right edge
+      // and the size stays stable while the word types out.
+      function fitFont(word) {
+        const box = target.parentElement;
+        const max = box.clientWidth;
+        if (!max) return;
+        const base = window.innerWidth >= 768 ? 96 : (window.innerWidth >= 640 ? 72 : 60);
+        let size = base;
+        target.style.fontSize = size + 'px';
+        const prev = target.textContent;
+        target.textContent = word;
+        let guard = 0;
+        while (target.scrollWidth > max && size > 24 && guard < 40) {
+          size -= 4;
+          target.style.fontSize = size + 'px';
+          guard++;
+        }
+        target.textContent = prev;
+      }
+
       function tick() {
+        const word = words[wordIdx];
+        if (idx === 0 && !isDeleting) fitFont(word);
         if (!isDeleting) {
           idx++;
-          target.textContent = word.substring(0, idx);
+          const nextText = word.substring(0, idx);
+          target.textContent = nextText || '\u00A0';
+          target.classList.toggle('hero-highlight', Boolean(nextText));
           if (idx === word.length) {
-            typewriterTimeout = setTimeout(() => { isDeleting = true; tick(); }, 2500);
+            typewriterTimeout = setTimeout(() => { isDeleting = true; tick(); }, 2000);
             return;
           }
           typewriterTimeout = setTimeout(tick, 140);
         } else {
           idx--;
-          target.textContent = word.substring(0, idx);
+          const nextText = word.substring(0, idx);
+          target.textContent = nextText || '\u00A0';
+          target.classList.toggle('hero-highlight', Boolean(nextText));
           if (idx === 0) {
             isDeleting = false;
-            typewriterTimeout = setTimeout(tick, 600);
+            wordIdx = (wordIdx + 1) % words.length;
+            typewriterTimeout = setTimeout(tick, 500);
             return;
           }
-          typewriterTimeout = setTimeout(tick, 80);
+          typewriterTimeout = setTimeout(tick, 70);
         }
       }
       tick();
     }
 
+    // Live log terminal: poll the tail endpoint and colour-code by level.
+    const logEl = document.getElementById('logTerminal');
+    const logLevelClass = (line) => {
+      if (line.includes('ERROR') || line.includes('Traceback')) return 'text-[#FF6B6B]';
+      if (line.includes('WARNING')) return 'text-[#FFBD2E]';
+      if (line.includes('INFO')) return 'text-neutral-400';
+      return 'text-neutral-500';
+    };
+    let logLines = [];
+    let logSig = '';
+    const logRowHtml = (l) => {
+      const safe = l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<div class="truncate ${logLevelClass(l)}">${safe}</div>`;
+    };
+    // Fill from the newest line, then drop the oldest rows until the content
+    // fits exactly. Measuring beats assuming a row height; the container height
+    // is locked by CSS so extra log volume can never grow the card.
+    function renderLogs() {
+      if (!logLines.length) return;
+      logEl.innerHTML = logLines.map(logRowHtml).join('');
+      let guard = logLines.length;
+      while (logEl.scrollHeight > logEl.clientHeight && logEl.firstChild && guard--) {
+        logEl.removeChild(logEl.firstChild);
+      }
+    }
+    async function loadLogs() {
+      try {
+        const res = await fetch('/api/logs?lines=80');
+        const data = await res.json();
+        logLines = data.lines || [];
+        const sig = logLines.join('\\n');
+        if (sig === logSig) return;   // skip DOM churn when nothing changed
+        logSig = sig;
+        renderLogs();
+      } catch (e) { /* terminal is best-effort; never block the dashboard */ }
+    }
+    // The card height settles after the poster/video loads; refill once it does.
+    if (window.ResizeObserver) new ResizeObserver(renderLogs).observe(logEl);
+
     loadStats();
     loadJobs();
     updateBookmarkUI();
+    loadLogs();
+    setInterval(loadLogs, 3000);
   </script>
 </body>
-</html>"""
+</html>""")
+    # The dashboard markup is embedded here, so a stale cached copy would keep
+    # serving old layout after every edit. Never let browsers/proxies cache it.
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -914,6 +1108,9 @@ def get_stats():
         
     last_updated = storage_service.get_last_updated()
 
+    db_path = storage_service.sqlite_file
+    db_bytes = db_path.stat().st_size if db_path.exists() else 0
+
     return jsonify({
         "totalJobs": total_jobs,
         "sourceCounts": source_counts,
@@ -921,9 +1118,34 @@ def get_stats():
         "platformCount": len(registered_platforms),
         "lastUpdated": last_updated,
         "lastScrapedAt": last_scraped_at,
+        "retentionDays": getattr(app_config, "JOB_RETENTION_DAYS", 30),
+        "dbBytes": db_bytes,
         "keywords": getattr(app_config, "KEYWORDS", []),
         "locations": getattr(app_config, "LOCATIONS", [])
     })
+
+@app.route("/api/logs", methods=["GET"])
+def get_logs():
+    """Tail the scraper log for the dashboard terminal widget."""
+    try:
+        lines = int(request.args.get("lines", 40))
+    except ValueError:
+        lines = 40
+    lines = max(1, min(lines, 200))
+
+    log_path = app_config.LOG_FILE
+    if not log_path.exists():
+        return jsonify({"lines": []})
+
+    try:
+        # Read only the tail to keep memory flat on low-RAM targets.
+        with open(log_path, "r", encoding="utf-8", errors="replace") as fh:
+            tail = collections.deque(fh, maxlen=lines)
+    except OSError as exc:
+        logger.warning("Unable to read log file: %s", exc)
+        return jsonify({"lines": []})
+
+    return jsonify({"lines": [ln.rstrip("\n") for ln in tail]})
 
 @app.route("/api/jobs", methods=["GET"])
 def get_jobs():

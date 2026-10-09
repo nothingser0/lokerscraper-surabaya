@@ -23,6 +23,7 @@ COLOR_MAP = {
     "sejutacita": 0x00B894,
     "techinasia": 0xE67E22,
     "remoteok": 0xFF4742,
+    "karir": 0x1ABC9C,
 }
 
 SOURCE_EMOJI = {
@@ -33,6 +34,7 @@ SOURCE_EMOJI = {
     "sejutacita": "🟩",
     "techinasia": "🟧",
     "remoteok": "🔴",
+    "karir": "🟢",
 }
 
 _FIELD_MAX_LEN = 28

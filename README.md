@@ -1,69 +1,75 @@
 # 🚀 LokerScraper Surabaya
 
 <p align="center">
-  <img src="docs/assets/dashboard-preview.png" alt="LokerScraper Surabaya Dashboard Preview" width="100%">
+  <img src="docs/assets/dashboard-preview.png" alt="LokerScraper Surabaya Dashboard Preview" width="80%">
 </p>
 
-LokerScraper Surabaya adalah aplikasi agregator lowongan kerja otomatis yang dirancang ringan, efisien, dan dapat berjalan 24/7 di perangkat berdaya rendah (seperti STB Armbian, Raspberry Pi, server mini) maupun container Docker.
+LokerScraper Surabaya is a high-efficiency automated job vacancy aggregator engineered for 24/7 continuous operation on low-power devices (Armbian TV boxes, Raspberry Pi, home servers) and Docker containers.
 
-Aplikasi ini mengumpulkan data lowongan kerja dari berbagai platform populer, menyaring posisi dan lokasi target secara otomatis, mencegah duplikasi data, mengirim notifikasi embed ke Discord/Telegram, serta menyediakan dashboard web modern dan REST API.
-
----
-
-## ✨ Fitur Utama
-
-- **Multi-Platform Scraper**: Pengambilan data secara paralel dari 6 platform (JobStreet, LinkedIn, Glints, Kalibrr, SejutaCita, dan Tech in Asia) tanpa browser automation berat (bebas Puppeteer/Playwright).
-- **Sangat Hemat Resource**: Penggunaan RAM idle `<50MB` dan saat aktif scraping `<120MB`.
-- **Filtering & Deduplikasi Cerdas**: Menyaring lowongan berdasarkan kata kunci (`KEYWORDS`) dan wilayah target (`LOCATIONS`). Dilengkapi sistem hashing deterministik untuk mencegah data ganda.
-- **Penyimpanan SQLite Andal**: Menggunakan database SQLite lokal (`data/jobs.db`) dengan indexed query dan auto-pruning VACUUM.
-- **Notifikasi Real-time**: Mengirim alert embed kaya informasi ke Discord Webhook (mendukung multi-channel) dan Telegram Bot.
-- **Dashboard Web Responsif**: Tampilan web modern bergaya editorial poster dengan pencarian real-time, filter mode kerja (Remote/Hybrid/On-site), sortir gaji, tombol simpan favorit (bookmark privat), dan ekspor CSV.
-- **Aman Diakses Jarak Jauh**: Siap diakses melalui jaringan lokal maupun VPN mesh privat (seperti Tailscale). Tombol trigger manual dilindungi oleh `TRIGGER_TOKEN`.
-- **Auto-Recovery**: Penjadwalan otomatis berkala via background scheduler dengan toleransi kegagalan dan auto-restart.
+The engine harvests job opportunities across 8 major recruitment platforms, performs deterministic deduplication and regional/keyword filtering, dispatches real-time alerts to Discord & Telegram, and serves a modern Swiss-editorial web dashboard alongside a JSON REST API.
 
 ---
 
-## 🛠️ Persyaratan Sistem
+## ✨ Key Features
 
-- Python 3.10+ (untuk instalasi native) **atau**
-- Docker & Docker Compose (rekomendasi untuk server / STB)
+- **8-Platform Parallel Scraping**: Concurrent data ingestion from Glints, JobStreet, Kalibrr, Karir.com, LinkedIn, RemoteOK, SejutaCita, and Tech in Asia — entirely headless, zero heavy browser dependencies (no Puppeteer/Playwright overhead).
+- **Ultra-Low Memory Footprint**: Idles under `<50 MB` RAM, peaks under `<120 MB` during active parallel cycles.
+- **Deterministic Deduplication & Storage**: Pure SQLite database (`data/jobs.db`) with WAL mode (`PRAGMA journal_mode=WAL`), indexed queries, automatic VACUUM pruning, and configurable 30-day retention.
+- **Smart N+1 Skipping**: Known jobs recorded in `seen_ids` table bypass detail HTTP roundtrips entirely on repeat runs.
+- **Real-Time Notification Dispatch**: Rich embeds delivered to multi-channel Discord Webhooks and Telegram bots with automated error alerting.
+- **Editorial Responsive Dashboard**:
+  - Live typewriter keyword cycler with responsive font-scaling and lime-highlight emphasis.
+  - Interactive search, work mode filters (Remote, Hybrid, On-site), salary sorting, and bookmarks.
+  - Built-in live terminal log widget (`scraper.log`) with live polling and auto-fit row trimming.
+  - Page jump pagination controls (`Go # →`).
+  - Native vertical typographic motivation marquees with edge fade masks.
+  - CSV export endpoint (`/api/export`).
+- **Secure Remote Access**: Ready for Cloudflare Tunnels (included in Docker compose profile) and private mesh networks (Tailscale/WireGuard). Manual triggers secured via `TRIGGER_TOKEN`.
+- **Fault-Tolerant Scheduling**: Background scheduler (APScheduler) with randomized intervals, individual scraper timeouts, and graceful shutdown signal handlers.
 
 ---
 
-## 🚀 Panduan Menjalankan
+## 🛠️ System Requirements
 
-### Opsi 1: Menggunakan Docker (Rekomendasi untuk STB / Server)
+- Python 3.10+ (for bare-metal execution) **or**
+- Docker & Docker Compose (recommended for 24/7 server / SBC deployment)
 
-1. **Clone repositori**:
+---
+
+## 🚀 Quick Start
+
+### Option 1: Docker Compose (Recommended for Production & TV Boxes)
+
+1. **Clone the repository**:
    ```bash
    git clone https://github.com/nothingser0/lokerscraper-surabaya.git
    cd lokerscraper-surabaya
    ```
 
-2. **Salin dan sesuaikan konfigurasi environment**:
+2. **Configure environment variables**:
    ```bash
    cp .env.example .env
    nano .env
    ```
-   *Isi minimal `DISCORD_WEBHOOK_URL` dan `TRIGGER_TOKEN`.*
+   *At minimum, set `DISCORD_WEBHOOK_URL` and `TRIGGER_TOKEN`.*
 
-3. **Jalankan container di latar belakang**:
+3. **Start the service in background**:
    ```bash
    docker compose up -d --build
    ```
 
-4. **Periksa status dan log**:
+4. **Verify container status**:
    ```bash
    docker compose ps
    docker compose logs -f job-scraper
    ```
-   Dashboard dapat diakses di browser melalui `http://localhost:5000` (atau `http://[IP-STB-ANDA]:5000`).
+   Access the dashboard at `http://localhost:5000` (or `http://[YOUR-DEVICE-IP]:5000`).
 
 ---
 
-### Opsi 2: Instalasi Lokal (Python Langsung)
+### Option 2: Native Python Setup
 
-1. **Persiapan virtual environment**:
+1. **Create and activate a virtual environment**:
    ```bash
    python -m venv venv
    source venv/bin/activate       # Linux / macOS
@@ -71,80 +77,74 @@ Aplikasi ini mengumpulkan data lowongan kerja dari berbagai platform populer, me
    pip install -r requirements.txt
    ```
 
-2. **Siapkan file `.env`**:
+2. **Prepare configuration**:
    ```bash
    cp .env.example .env
    ```
 
-3. **Jalankan server aplikasi**:
+3. **Launch the server**:
    ```bash
    python api/app.py
    ```
-   Aplikasi dan scheduler otomatis berjalan di `http://localhost:5000`.
+   Waitress serves the application at `http://0.0.0.0:5000`.
 
 ---
 
-## ⚙️ Konfigurasi Environment (`.env`)
+## ⚙️ Environment Configuration (`.env`)
 
-| Variabel | Keterangan | Nilai Bawaan / Contoh |
+| Variable | Description | Default / Example |
 | :--- | :--- | :--- |
-| `DISCORD_WEBHOOK_URL` | URL Webhook Discord untuk notifikasi | `https://discord.com/api/webhooks/...` |
-| `DISCORD_WEBHOOK_URLS`| Daftar multi-webhook Discord (pisahkan dengan koma) | Opsi jika ingin kirim ke banyak channel |
-| `TELEGRAM_BOT_TOKEN`  | Token bot Telegram (opsional) | Kosongkan jika tidak dipakai |
-| `TELEGRAM_CHAT_ID`    | ID chat Telegram (opsional) | Kosongkan jika tidak dipakai |
-| `TRIGGER_TOKEN`       | Kata sandi untuk memicu scraping manual | Bebas (contoh: `kuncirahasia123`) |
-| `SCRAPE_INTERVAL_HOURS` | Interval jeda scraping otomatis (jam) | `6` |
-| `SCRAPE_INTERVAL_MIN_HOURS` | Batas minimal interval acak | `3` |
-| `SCRAPE_INTERVAL_MAX_HOURS` | Batas maksimal interval acak | `6` |
-| `KEYWORDS`            | Kata kunci pencarian judul lowongan | `developer,engineer,programmer,data,qa,...` |
-| `LOCATIONS`           | Wilayah dan mode kerja yang diterima | `surabaya,sidoarjo,gresik,remote` |
-| `CLOUDFLARE_TUNNEL_TOKEN` | Token Cloudflare Zero Trust (opsional jika pakai domain sendiri) | `eyJh...` |
+| `DISCORD_WEBHOOK_URL` | Primary Discord Webhook URL for alerts | `https://discord.com/api/webhooks/...` |
+| `DISCORD_WEBHOOK_URLS` | Comma-separated list for multi-channel broadcast | *Optional* |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token | *Optional* |
+| `TELEGRAM_CHAT_ID` | Target Telegram chat ID | *Optional* |
+| `TRIGGER_TOKEN` | Secret token required for manual `/api/trigger` | `yoursecrettoken123` |
+| `SCRAPE_INTERVAL_HOURS` | Fixed scrape cycle interval (hours) | `6` |
+| `SCRAPE_INTERVAL_MIN_HOURS` | Minimum hours for randomized interval | `3` |
+| `SCRAPE_INTERVAL_MAX_HOURS` | Maximum hours for randomized interval | `6` |
+| `JOB_RETENTION_DAYS` | Automatically prune jobs older than N days | `30` |
+| `KEYWORDS` | Target job title / tech keywords (comma-separated) | `developer,engineer,backend,frontend,...` |
+| `LOCATIONS` | Accepted geographical locations and work modes | `surabaya,sidoarjo,gresik,remote` |
+| `CLOUDFLARE_TUNNEL_TOKEN` | Cloudflare Zero Trust tunnel token for public domain | *Optional* |
 
 ---
 
-## 🌐 Mengakses Publik Menggunakan Domain Sendiri (Cloudflare Tunnel)
+## 🌐 Public Domain Access (Cloudflare Tunnel)
 
-Jika Anda ingin dashboard dapat diakses publik dari mana saja dengan domain Anda (misal `https://loker.omahkene.my.id`) tanpa membuka port router / port forwarding:
+Expose the dashboard securely without router port-forwarding or public IP exposure:
 
-### Menggunakan Docker Compose (Profile Tunnel):
-1. Tambahkan token tunnel Cloudflare di `.env`:
-   ```env
-   CLOUDFLARE_TUNNEL_TOKEN=eyJh...
-   ```
-2. Jalankan container scraper sekaligus tunnel-nya:
-   ```bash
-   docker compose --profile tunnel up -d
-   ```
+### Via Docker Compose:
+```bash
+# Add CLOUDFLARE_TUNNEL_TOKEN to your .env, then run:
+docker compose --profile tunnel up -d
+```
 
-### Menggunakan Native Systemd Service:
-1. Pasang file service tunnel ke direktori systemd:
-   ```bash
-   sudo cp cloudflared.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now cloudflared.service
-   ```
+### Via Native Systemd Service:
+```bash
+sudo cp cloudflared.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now cloudflared.service
+```
 
 ---
 
-## 📡 REST API Endpoint
+## 📡 REST API Reference
 
-Aplikasi ini menyediakan antarmuka API siap pakai:
-
-- `GET /` — Halaman antarmuka web dashboard interaktif.
-- `GET /health` — Status kesehatan aplikasi & background scheduler.
-- `GET /api/stats` — Statistik total lowongan, daftar platform aktif, dan waktu update terakhir.
-- `GET /api/jobs` — Mengambil data lowongan dengan parameter pencarian:
-  - `?keyword=...` (filter posisi / teknologi)
-  - `?source=...` (filter platform tertentu)
-  - `?limit=...` & `?offset=...` (paginasi data)
-- `POST /api/trigger` — Memicu siklus scraping secara instan (memerlukan header `X-Trigger-Token: <token>` jika `TRIGGER_TOKEN` diatur).
-- `GET /api/export` — Mengunduh seluruh data lowongan dalam format file CSV.
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/` | `GET` | Interactive modern web dashboard |
+| `/health` | `GET` | Engine health check & scheduler status |
+| `/api/stats` | `GET` | Aggregated statistics, platform counts, DB storage & retention |
+| `/api/jobs` | `GET` | Filtered job vacancies (`?keyword=`, `?source=`, `?days=`, `?limit=`, `?offset=`) |
+| `/api/logs` | `GET` | Real-time scraper log tail (`?lines=60`) |
+| `/api/trigger` | `POST` / `GET` | Manually dispatch a scrape cycle (`X-Trigger-Token` header or `?token=`) |
+| `/api/export` | `GET` | Download full vacancies dataset in CSV format |
 
 ---
 
-## 🧪 Pengujian Sistem (Smoke Test)
+## 🧪 System Verification (Smoke Tests)
 
-Untuk memastikan seluruh koneksi scraper, database SQLite, dan endpoint API berfungsi normal:
+Validate SQLite storage operations, scraper auto-discovery registry, and live HTTP endpoints:
 
 ```bash
 python tests/smoke_test.py
@@ -152,6 +152,6 @@ python tests/smoke_test.py
 
 ---
 
-## 📄 Lisensi
+## 📄 License
 
-Proyek ini didistribusikan di bawah lisensi [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE).

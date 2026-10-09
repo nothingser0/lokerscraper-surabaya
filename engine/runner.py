@@ -108,7 +108,7 @@ class ScraperRunner:
             notify_scraper_error(persistent_alerts)
 
         try:
-            storage.cleanup_old_jobs()
+            storage.cleanup_old_jobs(days=config.JOB_RETENTION_DAYS)
             storage.trim_seen_ids()
         except Exception as e:
             logger.error(f"Error during storage cleanup: {e}", exc_info=True)

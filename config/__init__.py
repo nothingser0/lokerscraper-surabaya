@@ -35,6 +35,8 @@ class Config:
     SCRAPE_INTERVAL_MIN_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_MIN_HOURS", "0")))
     SCRAPE_INTERVAL_MAX_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_MAX_HOURS", "0")))
     TRIGGER_TOKEN: str = field(default_factory=lambda: os.getenv("TRIGGER_TOKEN", ""))
+    # Jobs older than this are pruned automatically after every scrape cycle.
+    JOB_RETENTION_DAYS: int = field(default_factory=lambda: int(os.getenv("JOB_RETENTION_DAYS", "30")))
     KEYWORDS: List[str] = field(default_factory=lambda: [k.strip().lower() for k in os.getenv("KEYWORDS", _default_keywords).split(",") if k.strip()])
     LOCATIONS: List[str] = field(default_factory=lambda: [l.strip().lower() for l in os.getenv("LOCATIONS", _default_locations).split(",") if l.strip()])
     
@@ -67,6 +69,7 @@ SCRAPE_INTERVAL_HOURS = config.SCRAPE_INTERVAL_HOURS
 SCRAPE_INTERVAL_MIN_HOURS = config.SCRAPE_INTERVAL_MIN_HOURS
 SCRAPE_INTERVAL_MAX_HOURS = config.SCRAPE_INTERVAL_MAX_HOURS
 TRIGGER_TOKEN = config.TRIGGER_TOKEN
+JOB_RETENTION_DAYS = config.JOB_RETENTION_DAYS
 KEYWORDS = config.KEYWORDS
 LOCATIONS = config.LOCATIONS
 LOG_FILE = config.LOG_FILE
