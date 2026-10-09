@@ -21,6 +21,7 @@ COLOR_MAP = {
     "glints": 0xFF7675,
     "linkedin": 0x0A66C2,
     "sejutacita": 0x00B894,
+    "techinasia": 0xE67E22,
 }
 
 SOURCE_EMOJI = {
@@ -29,6 +30,7 @@ SOURCE_EMOJI = {
     "glints": "🟥",
     "linkedin": "🔷",
     "sejutacita": "🟩",
+    "techinasia": "🟧",
 }
 
 _FIELD_MAX_LEN = 28

@@ -20,14 +20,14 @@ IT_OVERRIDE_RE = re.compile(
     re.IGNORECASE
 )
 
-IT_KEYWORDS = getattr(config, "IT_KEYWORDS", [
+KEYWORDS = getattr(config, "KEYWORDS", [
     "developer", "engineer", "programmer", "backend", "frontend",
     "fullstack", "mobile", "data", "devops", "qa", "tester", "web",
     "software", "code", "tech", "it"
 ])
 
-IT_KEYWORDS_RE = re.compile(
-    r"\b(?:" + "|".join(re.escape(kw) for kw in IT_KEYWORDS) + r")\b",
+KEYWORDS_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(kw) for kw in KEYWORDS) + r")\b",
     re.IGNORECASE
 )
 
@@ -44,7 +44,7 @@ def is_it_job(job: Dict[str, Any]) -> bool:
     if NON_IT_EXCEPTIONS_RE.search(title):
         if not IT_OVERRIDE_RE.search(title):
             return False
-    return bool(IT_KEYWORDS_RE.search(title))
+    return bool(KEYWORDS_RE.search(title))
 
 def is_valid_location(job: Dict[str, Any]) -> bool:
     """Check if job location matches allowed locations or work modes."""

@@ -80,7 +80,7 @@ class LinkedInScraper(BaseScraper):
         seen_job_ids = set()
         default_loc = config.LOCATIONS[0] if config.LOCATIONS else "Surabaya"
 
-        for kw in config.IT_KEYWORDS:
+        for kw in config.KEYWORDS:
             params = {
                 "keywords": kw,
                 "location": default_loc,

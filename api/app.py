@@ -1,7 +1,9 @@
 import logging
+import os
 import sys
 import threading
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Configure logging to both console and file
 logging.basicConfig(
@@ -24,23 +26,29 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+load_dotenv(PROJECT_ROOT / ".env", override=True)
+
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from config import config, random_scrape_interval_hours
+from config import config as app_config, random_scrape_interval_hours
 from storage import StorageService
 from engine.runner import ScraperRunner
+import scrapers
+from scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, static_folder=str(PROJECT_ROOT / "static"), static_url_path="/static")
+app = Flask(__name__, static_folder=None)
 
 @app.route("/static/<path:filename>")
 def custom_static(filename):
-    from flask import send_from_directory
-    return send_from_directory(str(PROJECT_ROOT / "static"), filename)
+    from flask import send_from_directory, make_response
+    resp = make_response(send_from_directory(str(PROJECT_ROOT / "static"), filename))
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
 
 storage_service = StorageService()
 last_scraped_at: Optional[str] = None
@@ -58,7 +66,7 @@ def scheduled_scrape_job():
 
 
 scheduler = BackgroundScheduler(daemon=True)
-scrape_interval_hours = getattr(config, "SCRAPE_INTERVAL_HOURS", 6)
+scrape_interval_hours = getattr(app_config, "SCRAPE_INTERVAL_HOURS", 6)
 scheduler.add_job(
     scheduled_scrape_job,
     'interval',
@@ -80,6 +88,8 @@ def dashboard():
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LokerScraper Surabaya</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='10' fill='%23111111'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23D4F542'/%3E%3Cpath d='M16 4v4M16 24v4M4 16h4M24 16h4' stroke='%23D4F542' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preload" as="image" href="/static/hero.gif">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -107,13 +117,47 @@ def dashboard():
       background-image: radial-gradient(rgba(0,0,0,0.06) 1px, transparent 0);
       background-size: 24px 24px;
     }
-    /* Show side marquees ONLY on screen widths 1536px and above */
-    .marquee-sidebar {
-      display: none;
+    /* Badge subtle pulse & shimmer */
+    @keyframes badgeGlow {
+      0%, 100% { border-color: rgba(0, 0, 0, 0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+      50% { border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 0 12px rgba(16, 185, 129, 0.12); }
     }
-    @media (min-width: 1536px) {
+    .badge-animated {
+      animation: badgeGlow 3s ease-in-out infinite;
+    }
+    /* Radar smooth breathing wave */
+    @keyframes radarPulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(212, 245, 66, 0.7); }
+      70% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(212, 245, 66, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(212, 245, 66, 0); }
+    }
+    .radar-dot {
+      animation: radarPulse 2.2s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+    }
+    /* Typewriter cursor effect */
+    .cursor-blink {
+      display: inline-block;
+      width: 3px;
+      height: 0.85em;
+      background-color: #111111;
+      margin-left: 4px;
+      vertical-align: baseline;
+      animation: blink 1s steps(2, start) infinite;
+    }
+    @keyframes blink {
+      to { visibility: hidden; }
+    }
+    /* Always visible on desktop screens (1024px+), hidden only on mobile/tablet */
+    .marquee-sidebar {
+      display: flex !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: none;
+      z-index: 0;
+    }
+    @media (max-width: 1279px) {
       .marquee-sidebar {
-        display: flex;
+        display: none !important;
       }
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -148,18 +192,43 @@ def dashboard():
 </head>
 <body class="p-3 sm:p-6 md:p-10 antialiased selection:bg-limepill selection:text-black noise-bg min-h-screen w-full overflow-x-hidden">
   
-  <!-- 1. Kiri di tengah, -90 derajat, arah jalan atas ke bawah -->
-  <div class="marquee-sidebar fixed left-0 top-0 bottom-0 w-[calc((100vw-1152px)/2)] pointer-events-none select-none z-0 overflow-hidden">
-    <div class="text-kiri-sync text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.13] uppercase select-none">
+  <!-- Left Motivation: Visible on all desktop screens (1280px+) -->
+  <div class="marquee-sidebar fixed left-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] pointer-events-none select-none overflow-hidden">
+    <div class="text-kiri-sync text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.16] uppercase select-none">
       BUILD THE FUTURE • SOLVE REAL PROBLEMS • NEVER SETTLE
     </div>
   </div>
 
-  <!-- 2. Kanan di tengah, 90 derajat, arah jalan bawah ke atas -->
-  <div class="marquee-sidebar fixed right-0 top-0 bottom-0 w-[calc((100vw-1152px)/2)] pointer-events-none select-none z-0 overflow-hidden">
-    <div class="text-kanan-sync text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.13] uppercase select-none">
+  <!-- Right Motivation: Visible on all desktop screens (1280px+) -->
+  <div class="marquee-sidebar fixed right-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] pointer-events-none select-none overflow-hidden">
+    <div class="text-kanan-sync text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.16] uppercase select-none">
       CREATE MASTERY • CODE WITH PURPOSE • SHIP WITH PRIDE
     </div>
+  </div>
+
+  <!-- Custom Modal: Trigger Scrape Token Prompt -->
+  <div id="tokenModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="bg-[#181818] border border-neutral-700/80 rounded-3xl p-6 md:p-8 max-w-sm w-full space-y-5 shadow-2xl text-white">
+      <div class="space-y-1">
+        <div class="text-[10px] uppercase tracking-widest font-bold text-limepill">Security Check</div>
+        <h3 class="text-xl font-bold tracking-tight">Manual Trigger</h3>
+        <p class="text-xs text-neutral-400">Enter your trigger token to execute on-demand scraping across all platforms.</p>
+      </div>
+      <div class="space-y-2">
+        <input type="password" id="modalTokenInput" placeholder="Enter trigger token..." class="w-full bg-neutral-900 border border-neutral-700 rounded-full px-4 py-2.5 text-xs text-white focus:outline-none focus:border-limepill transition">
+        <div id="modalErrorMsg" class="hidden text-[11px] text-rose-400 font-semibold px-2"></div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-neutral-800">
+        <button onclick="closeTokenModal()" class="pill-btn px-4 py-2 text-xs text-neutral-400 hover:text-white transition">Cancel</button>
+        <button id="modalConfirmBtn" onclick="confirmTriggerScrape()" class="pill-btn bg-limepill hover:brightness-95 text-black font-bold px-5 py-2 text-xs transition">Confirm ↗</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Toast Notification -->
+  <div id="toastNotification" class="hidden fixed bottom-6 right-6 z-50 bg-[#181818] border border-neutral-700 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs transition">
+    <span class="w-2 h-2 rounded-full bg-limepill animate-ping" id="toastDot"></span>
+    <span id="toastMsg" class="font-medium">Notification</span>
   </div>
 
   <div class="max-w-6xl mx-auto space-y-4 md:space-y-6 relative z-10 w-full">
@@ -171,8 +240,10 @@ def dashboard():
       <div class="lg:col-span-8 bg-[#F8F8F5] rounded-3xl p-5 sm:p-7 md:p-10 border border-black/5 shadow-sm flex flex-col justify-between space-y-6 md:space-y-8">
         <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span id="heroStreamBadge" class="text-xs font-semibold tracking-wider uppercase text-neutral-500">Live Stream</span>
+            <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neutral-900 border border-neutral-800 text-white shadow-xs transition cursor-default">
+              <span class="w-2 h-2 rounded-full bg-limepill radar-dot"></span>
+              <span id="heroStreamBadge" class="text-[11px] font-bold tracking-widest uppercase text-neutral-200">Surabaya Opportunities</span>
+            </span>
           </div>
           <!-- Desktop Nav Actions -->
           <div class="hidden sm:flex items-center gap-2">
@@ -192,7 +263,7 @@ def dashboard():
               ≡
           </button>
             <div id="mobileNavMenu" class="hidden absolute right-0 mt-2 w-44 bg-[#181818] border border-neutral-700/80 rounded-2xl shadow-2xl p-2 z-50 text-xs space-y-1">
-              <button onclick="toggleMobileNav(); triggerScrape()" class="w-full text-left bg-limepill text-black font-bold px-3 py-2 rounded-xl flex items-center justify-between">
+              <button id="triggerBtnMobile" onclick="toggleMobileNav(); triggerScrape()" class="w-full text-left bg-limepill text-black font-bold px-3 py-2 rounded-xl flex items-center justify-between">
             <span>Scrape Now</span>
               <span>↗</span>
           </button>
@@ -208,21 +279,23 @@ def dashboard():
 
         <div class="space-y-1.5 max-w-full">
           <h1 class="display-title font-black tracking-tight text-neutral-900 leading-none">
-            <div id="heroWordMain" class="text-5xl sm:text-7xl md:text-8xl">Developer</div>
+            <div class="text-5xl sm:text-7xl md:text-8xl flex items-baseline justify-start min-h-[1.05em] leading-none overflow-hidden">
+              <span id="heroWordMain" class="inline-block whitespace-nowrap text-left">Developer</span><span class="cursor-blink"></span>
+            </div>
             <div class="flex items-end gap-3 text-4xl sm:text-6xl md:text-7xl mt-1">
-              <span class="leading-none">Jobs</span>
-              <span class="inline-flex items-center justify-center bg-black text-limepill font-black px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full text-base sm:text-2xl md:text-3xl shadow-sm tracking-normal leading-none mb-0.5">
+              <span class="leading-none pb-1 sm:pb-1.5">Jobs</span>
+              <span class="inline-flex items-center justify-center bg-black text-limepill font-black px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-sm sm:text-xl md:text-2xl shadow-sm tracking-normal leading-none mb-1 sm:mb-1.5">
               <span id="statTotal">-</span>
             </span>
             </div>
           </h1>
-          <h2 id="heroSubtitle" class="display-title text-2xl sm:text-4xl md:text-5xl font-bold text-neutral-400 pt-1">
+          <h2 id="heroSubtitle" class="display-title text-2xl sm:text-4xl md:text-5xl font-bold text-neutral-400 pt-0.5 pb-1">
             Surabaya & Remote
           </h2>
         </div>
 
         <!-- Dynamic Tags from ENV: Matching Reference Poster Typography -->
-        <div class="pt-3 border-t border-black/5 space-y-3 font-sans">
+        <div class="pt-2 border-t border-black/5 space-y-2 font-sans">
           <div class="space-y-1.5">
             <div class="font-bold tracking-widest text-[10px] text-neutral-400 uppercase">LOCATIONS</div>
             <div id="envLocations" class="flex flex-wrap gap-1.5">Loading...</div>
@@ -234,28 +307,28 @@ def dashboard():
         </div>
 
         <!-- 3 & 4. Bottom Stats: Last Update Real & Platform Counter Berkontras Jelas -->
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-black/5 text-xs">
-          <div class="md:col-span-5">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-4 border-t border-black/5 text-xs">
+          <div class="sm:col-span-4">
             <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Last Updated</div>
             <div id="statUpdated" class="font-semibold text-neutral-800 mt-1">-</div>
           </div>
-          <div class="md:col-span-3">
+          <div class="sm:col-span-2">
             <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Cycle Status</div>
             <div id="statScraped" class="font-semibold text-neutral-800 mt-1">-</div>
           </div>
-          <div class="md:col-span-4">
+          <div class="sm:col-span-6">
             <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Platforms</div>
-            <div id="statSources" class="flex flex-wrap gap-1.5 mt-1.5 items-center">-</div>
+            <div id="statSources" class="grid grid-cols-3 sm:grid-cols-3 gap-1.5 mt-1.5">-</div>
           </div>
         </div>
       </div>
 
       <!-- Right Visual Hero Card: Real programmer typing at workstation -->
       <div class="lg:col-span-4 bg-neutral-900 rounded-3xl overflow-hidden relative min-h-[260px] sm:min-h-[320px] border border-black/10 shadow-sm group">
-        <img src="/static/hero.gif" alt="Professional Developer at Work" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-700 brightness-90">
+        <img src="/static/hero.gif" alt="Professional Developer at Work" loading="eager" decoding="sync" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-700 brightness-90">
         <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
         <div class="absolute top-5 right-5 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-[11px] font-semibold text-limepill">
-          <span class="w-2 h-2 rounded-full bg-limepill animate-ping"></span>
+          <span class="w-2 h-2 rounded-full bg-limepill radar-dot"></span>
           <span>Online Radar</span>
         </div>
         <div class="absolute bottom-6 left-6 right-6 text-white space-y-2">
@@ -489,20 +562,23 @@ def dashboard():
         }
         if (data.keywords && data.keywords.length) {
           const primaryKw = data.keywords[0].charAt(0).toUpperCase() + data.keywords[0].slice(1);
-          document.getElementById('heroWordMain').innerText = primaryKw;
+          initTypewriter(primaryKw);
           document.getElementById('envKeywords').innerHTML = data.keywords.slice(0, 10).map(k => 
             `<span class="bg-limepill text-black border border-black/10 px-3 py-1 rounded-full font-extrabold text-[11px] tracking-tight shadow-sm">${k}</span>`
           ).join('') + (data.keywords.length > 10 ? `<span class="text-neutral-500 text-[11px] font-bold self-center">+${data.keywords.length - 10} more</span>` : '');
         }
 
+        const platforms = data.platforms || (data.sourceCounts ? Object.keys(data.sourceCounts) : []);
         if (data.sourceCounts) {
-          const sources = Object.keys(data.sourceCounts);
           document.getElementById('statSources').innerHTML = Object.entries(data.sourceCounts)
-            .map(([k, v]) => `<span class="inline-flex items-center gap-1.5 bg-neutral-900 text-neutral-200 border border-neutral-700/80 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide"><span>${k}</span><span class="bg-limepill text-black font-black px-1.5 py-0.2 rounded-full text-[10px]">${v}</span></span>`).join('');
+            .map(([k, v]) => `<span class="flex items-center justify-between bg-neutral-900 text-neutral-200 border border-neutral-700/80 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide"><span class="truncate">${k}</span><span class="bg-limepill text-black font-black px-1.5 py-0.2 rounded-full text-[10px] ml-auto shrink-0">${v}</span></span>`).join('');
           
-          if (sources.length) {
-            document.getElementById('platformCountBadge').innerText = `${sources.length} Aggregators`;
-            document.getElementById('platformNamesBanner').innerText = `Continuous automated aggregation across ${sources.join(', ')}.`;
+          if (platforms.length) {
+            document.getElementById('platformCountBadge').innerText = `${platforms.length} Aggregators`;
+            const displayedPlatforms = platforms.length > 6 
+              ? `${platforms.slice(0, 6).join(', ')} +${platforms.length - 6} more`
+              : platforms.join(', ');
+            document.getElementById('platformNamesBanner').innerText = `Continuous automated aggregation across ${displayedPlatforms}.`;
             
             // Populate custom rounded popup menu
             const menuEl = document.getElementById('sourceFilterMenu');
@@ -510,10 +586,10 @@ def dashboard():
               <div onclick="selectPlatform('', 'All Platforms')" class="px-4 py-2 hover:bg-neutral-800 text-neutral-200 cursor-pointer flex items-center justify-between transition">
                 <span>All Platforms</span>
               </div>` +
-              sources.map(s => `
-                <div onclick="selectPlatform('${s}', '${s} (${data.sourceCounts[s]})')" class="px-4 py-2 hover:bg-neutral-800 text-neutral-300 hover:text-white cursor-pointer flex items-center justify-between transition">
+              platforms.map(s => `
+                <div onclick="selectPlatform('${s}', '${s} (${data.sourceCounts[s] || 0})')" class="px-4 py-2 hover:bg-neutral-800 text-neutral-300 hover:text-white cursor-pointer flex items-center justify-between transition">
                   <span>${s}</span>
-                  <span class="text-[10px] bg-neutral-800 px-1.5 py-0.5 rounded-full text-neutral-400">${data.sourceCounts[s]}</span>
+                  <span class="text-[10px] bg-neutral-800 px-1.5 py-0.5 rounded-full text-neutral-400">${data.sourceCounts[s] || 0}</span>
                 </div>
               `).join('');
           }
@@ -656,17 +732,118 @@ def dashboard():
       }
     }
 
-    async function triggerScrape() {
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toastNotification');
+      const text = document.getElementById('toastMsg');
+      const dot = document.getElementById('toastDot');
+      text.innerText = msg;
+      dot.className = isError ? 'w-2 h-2 rounded-full bg-rose-500' : 'w-2 h-2 rounded-full bg-limepill animate-ping';
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    function triggerScrape() {
+      document.getElementById('modalTokenInput').value = '';
+      document.getElementById('modalErrorMsg').classList.add('hidden');
+      document.getElementById('tokenModal').classList.remove('hidden');
+      document.getElementById('modalTokenInput').focus();
+    }
+
+    function closeTokenModal() {
+      document.getElementById('tokenModal').classList.add('hidden');
+    }
+
+    async function confirmTriggerScrape() {
+      const input = document.getElementById('modalTokenInput');
+      const token = input.value.trim();
+      if (!token) {
+        document.getElementById('modalErrorMsg').innerText = 'Token cannot be empty.';
+        document.getElementById('modalErrorMsg').classList.remove('hidden');
+        return;
+      }
+
+      const confirmBtn = document.getElementById('modalConfirmBtn');
+      confirmBtn.disabled = true;
+      confirmBtn.innerText = 'Verifying...';
+
       const btn = document.getElementById('triggerBtn');
+      const btnMobile = document.getElementById('triggerBtnMobile');
       btn.disabled = true;
       btn.innerHTML = '<span>Scraping...</span>';
+      if (btnMobile) {
+        btnMobile.disabled = true;
+        btnMobile.innerHTML = '<span>Scraping...</span>';
+      }
       try {
-        await fetch('/api/trigger', { method: 'POST' });
-        setTimeout(() => { loadStats(); loadJobs(); btn.disabled = false; btn.innerHTML = '<span>Scrape Now</span><span>↗</span>'; }, 3000);
+        const res = await fetch('/api/trigger', {
+          method: 'POST',
+          headers: { 'X-Trigger-Token': token }
+        });
+        if (res.status === 401) {
+          document.getElementById('modalErrorMsg').innerText = 'Invalid token. Authorization failed.';
+          document.getElementById('modalErrorMsg').classList.remove('hidden');
+          confirmBtn.disabled = false;
+          confirmBtn.innerText = 'Confirm ↗';
+          btn.disabled = false;
+          btn.innerHTML = '<span>Scrape Now</span><span>↗</span>';
+          if (btnMobile) {
+            btnMobile.disabled = false;
+            btnMobile.innerHTML = '<span>Scrape Now</span><span>↗</span>';
+          }
+          return;
+        }
+        closeTokenModal();
+        showToast('Scraping initiated across all 6 platforms.');
+        setTimeout(() => {
+          loadStats();
+          loadJobs();
+          btn.disabled = false;
+          btn.innerHTML = '<span>Scrape Now</span><span>↗</span>';
+          if (btnMobile) {
+            btnMobile.disabled = false;
+            btnMobile.innerHTML = '<span>Scrape Now</span><span>↗</span>';
+          }
+        }, 3000);
       } catch (e) {
+        closeTokenModal();
+        showToast('Network error triggering scraper.', true);
         btn.disabled = false;
         btn.innerHTML = '<span>Scrape Now</span><span>↗</span>';
+        if (btnMobile) {
+          btnMobile.disabled = false;
+          btnMobile.innerHTML = '<span>Scrape Now</span><span>↗</span>';
+        }
       }
+    }
+
+    let typewriterTimeout = null;
+    function initTypewriter(word) {
+      if (typewriterTimeout) clearTimeout(typewriterTimeout);
+      const target = document.getElementById('heroWordMain');
+      let idx = 0;
+      let isDeleting = false;
+
+      function tick() {
+        if (!isDeleting) {
+          idx++;
+          target.textContent = word.substring(0, idx);
+          if (idx === word.length) {
+            typewriterTimeout = setTimeout(() => { isDeleting = true; tick(); }, 2500);
+            return;
+          }
+          typewriterTimeout = setTimeout(tick, 140);
+        } else {
+          idx--;
+          target.textContent = word.substring(0, idx);
+          if (idx === 0) {
+            isDeleting = false;
+            typewriterTimeout = setTimeout(tick, 600);
+            return;
+          }
+          typewriterTimeout = setTimeout(tick, 80);
+        }
+      }
+      tick();
     }
 
     loadStats();
@@ -701,8 +878,12 @@ def trigger_scrape():
     Use POST, or open the URL directly with GET. Add `?force=true` to also send the freshly fetched batch to Discord even if
     no new jobs were found (useful for testing the notification path).
     """
-    if getattr(config, "TRIGGER_TOKEN", "") and request.headers.get("X-Trigger-Token") != config.TRIGGER_TOKEN:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    configured_token = str(getattr(app_config, "TRIGGER_TOKEN", "") or os.getenv("TRIGGER_TOKEN", "")).strip()
+    req_token = (request.headers.get("X-Trigger-Token") or request.args.get("token", "")).strip()
+    logger.info(f"Trigger check -> configured: '{configured_token}', req: '{req_token}'")
+    if configured_token:
+        if not req_token or req_token != configured_token:
+            return jsonify({"status": "error", "message": "Unauthorized: invalid or missing trigger token"}), 401
     force = request.args.get("force", "").strip().lower() in ("1", "true", "yes")
     thread = threading.Thread(target=_run_scrape_async, kwargs={"force": force}, daemon=True)
     thread.start()
@@ -718,7 +899,12 @@ def get_stats():
     jobs = storage_service.load_jobs()
     total_jobs = len(jobs)
     
+    # Dynamic list of all registered platform classes in the scraper engine
+    registered_platforms = sorted([cls().source_name for cls in BaseScraper.__subclasses__()])
+    
     source_counts: Dict[str, int] = {}
+    for p in registered_platforms:
+        source_counts[p] = 0
     for job in jobs:
         src = job.get("source", "Unknown")
         source_counts[src] = source_counts.get(src, 0) + 1
@@ -728,10 +914,12 @@ def get_stats():
     return jsonify({
         "totalJobs": total_jobs,
         "sourceCounts": source_counts,
+        "platforms": registered_platforms,
+        "platformCount": len(registered_platforms),
         "lastUpdated": last_updated,
         "lastScrapedAt": last_scraped_at,
-        "keywords": getattr(config, "IT_KEYWORDS", []),
-        "locations": getattr(config, "LOCATIONS", [])
+        "keywords": getattr(app_config, "KEYWORDS", []),
+        "locations": getattr(app_config, "LOCATIONS", [])
     })
 
 @app.route("/api/jobs", methods=["GET"])

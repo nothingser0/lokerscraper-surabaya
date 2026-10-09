@@ -28,7 +28,7 @@ class TechInAsiaScraper(BaseScraper):
         scraped_jobs: List[Dict[str, Any]] = []
         seen_job_ids = set()
 
-        for kw in config.IT_KEYWORDS:
+        for kw in config.KEYWORDS:
             params = {
                 "query": kw,
                 "country_name": "Indonesia",

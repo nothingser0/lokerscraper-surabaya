@@ -35,7 +35,7 @@ class Config:
     SCRAPE_INTERVAL_MIN_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_MIN_HOURS", "0")))
     SCRAPE_INTERVAL_MAX_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_MAX_HOURS", "0")))
     TRIGGER_TOKEN: str = field(default_factory=lambda: os.getenv("TRIGGER_TOKEN", ""))
-    IT_KEYWORDS: List[str] = field(default_factory=lambda: [k.strip().lower() for k in os.getenv("IT_KEYWORDS", _default_keywords).split(",") if k.strip()])
+    KEYWORDS: List[str] = field(default_factory=lambda: [k.strip().lower() for k in os.getenv("KEYWORDS", _default_keywords).split(",") if k.strip()])
     LOCATIONS: List[str] = field(default_factory=lambda: [l.strip().lower() for l in os.getenv("LOCATIONS", _default_locations).split(",") if l.strip()])
     
     BASE_DIR: Path = BASE_DIR
@@ -69,7 +69,7 @@ SCRAPE_INTERVAL_HOURS = config.SCRAPE_INTERVAL_HOURS
 SCRAPE_INTERVAL_MIN_HOURS = config.SCRAPE_INTERVAL_MIN_HOURS
 SCRAPE_INTERVAL_MAX_HOURS = config.SCRAPE_INTERVAL_MAX_HOURS
 TRIGGER_TOKEN = config.TRIGGER_TOKEN
-IT_KEYWORDS = config.IT_KEYWORDS
+KEYWORDS = config.KEYWORDS
 LOCATIONS = config.LOCATIONS
 JOBS_FILE = config.JOBS_FILE
 SEEN_IDS_FILE = config.SEEN_IDS_FILE

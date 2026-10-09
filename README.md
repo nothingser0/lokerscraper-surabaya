@@ -56,7 +56,7 @@ Edit `.env` and paste your Discord Webhook URL:
 ```env
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your/webhook/url
 SCRAPE_INTERVAL_HOURS=6
-IT_KEYWORDS=developer,engineer,programmer,backend,frontend,fullstack,mobile,data,devops,qa,tester,web
+KEYWORDS=developer,engineer,programmer,backend,frontend,fullstack,mobile,data,devops,qa,tester,web
 LOCATIONS=surabaya,sidoarjo,gresik,remote
 ```
 

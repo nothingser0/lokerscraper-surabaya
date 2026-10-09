@@ -34,6 +34,7 @@ def notify_new_jobs(jobs: List[Dict[str, Any]]) -> None:
     if not jobs:
         return
 
+    # 1. Notify Discord webhooks
     for webhook_url in _discord_webhook_urls():
         try:
             discord = DiscordNotifier(webhook_url)
@@ -41,6 +42,17 @@ def notify_new_jobs(jobs: List[Dict[str, Any]]) -> None:
         except Exception as e:
             logger.error(f"Error sending Discord notification: {e}")
 
+    # 2. Notify Telegram if token & chat_id are set and not placeholder
+    bot_token = (getattr(config, "TELEGRAM_BOT_TOKEN", "") or "").strip()
+    chat_id = (getattr(config, "TELEGRAM_CHAT_ID", "") or "").strip()
+    placeholder_tokens = {"123456789:ABCdefGHIjklMNOpqrsTUVwxyz", "your_telegram_bot_token", "your_bot_token"}
+    placeholder_chats = {"-100123456789", "your_telegram_chat_id", "your_chat_id"}
+    if bot_token and chat_id and bot_token not in placeholder_tokens and chat_id not in placeholder_chats:
+        try:
+            telegram = TelegramNotifier(bot_token=bot_token, chat_id=chat_id)
+            telegram.send_jobs(jobs)
+        except Exception as e:
+            logger.error(f"Error sending Telegram notification: {e}")
 
 def notify_scraper_error(errors: List[str]) -> None:
     """Send a system alert embed to Discord webhook if scrapers encounter repeated failures."""
