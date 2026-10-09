@@ -37,7 +37,6 @@ class RemoteOKScraper(BaseScraper):
             if not isinstance(payload, list):
                 return []
 
-            # First element of RemoteOK API is metadata/legal note; skip non-job dicts
             items = [item for item in payload if isinstance(item, dict) and item.get("id") and item.get("position")]
 
             for job in items:
@@ -50,15 +49,12 @@ class RemoteOKScraper(BaseScraper):
                 logo_url = job.get("company_logo")
                 url = job.get("url") or f"https://remoteok.com/remote-jobs/{raw_id}"
                 
-                # RemoteOK is 100% remote worldwide
                 location = job.get("location") or "Remote, Worldwide"
                 work_mode = "Remote"
                 
-                # Parse salary min/max if present
                 sal_min = job.get("salary_min")
                 sal_max = job.get("salary_max")
                 
-                # Posted date
                 posted_at = None
                 date_epoch = job.get("epoch")
                 if date_epoch and isinstance(date_epoch, (int, float)):

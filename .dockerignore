@@ -1,11 +1,9 @@
-# Git & Docs
 .git/
 .gitignore
 README.md
 docs-ai/
 planning/
 
-# Environments & Virtualenvs
 .venv/
 venv/
 env/
@@ -13,10 +11,8 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Local Data & Logs (mounted via volumes)
 data/
 logs/
 
-# IDE
 .vscode/
 .idea/

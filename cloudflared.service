@@ -5,8 +5,6 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# cloudflared binary can be installed via: sudo apt install cloudflared
-# or downloaded from: https://github.com/cloudflare/cloudflared/releases
 ExecStart=/usr/local/bin/cloudflared tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
 EnvironmentFile=%h/lokerscraper-surabaya/.env
 Restart=always

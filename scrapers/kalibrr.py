@@ -7,7 +7,7 @@ from scrapers.base import BaseScraper, new_job_dict
 from utils.text import (
     sanitize_text,
     clean_description,
-    format_job_type_id,
+    format_job_type,
     decode_kalibrr_experience,
     decode_kalibrr_education,
     decode_benefit,
@@ -116,7 +116,7 @@ class KalibrrScraper(BaseScraper):
                     job_url = f"https://www.kalibrr.com/c/{company_code}/jobs/{raw_id}/{job_slug}"
 
                     tenure = job.get("tenure")
-                    job_type = format_job_type_id(tenure if isinstance(tenure, str) and tenure else "Full-time")
+                    job_type = format_job_type(tenure if isinstance(tenure, str) and tenure else "Full-time")
 
                     created_at_str = self._format_date(job.get("created_at"))
                     posted_at = created_at_str or datetime.now(timezone.utc).strftime("%Y-%m-%d")

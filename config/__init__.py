@@ -21,26 +21,17 @@ _default_locations = "surabaya,sidoarjo,gresik,remote"
 @dataclass
 class Config:
     DISCORD_WEBHOOK_URL: str = field(default_factory=lambda: os.getenv("DISCORD_WEBHOOK_URL", ""))
-    # Comma-separated list of Discord webhook URLs (supports notifying multiple
-    # channels/servers). Falls back to the single DISCORD_WEBHOOK_URL.
     DISCORD_WEBHOOK_URLS: List[str] = field(default_factory=lambda: [u.strip() for u in os.getenv("DISCORD_WEBHOOK_URLS", "").split(",") if u.strip()])
-    # Dedicated channel for system alerts (scraper failures). Falls back to the
-    # job webhooks when unset, so existing setups keep working.
     DISCORD_ERROR_WEBHOOK_URL: str = field(default_factory=lambda: os.getenv("DISCORD_ERROR_WEBHOOK_URL", ""))
     TELEGRAM_BOT_TOKEN: str = field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN", ""))
     TELEGRAM_CHAT_ID: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_ID", ""))
-    # Optional separate Telegram chat for system alerts (falls back to TELEGRAM_CHAT_ID).
     TELEGRAM_ERROR_CHAT_ID: str = field(default_factory=lambda: os.getenv("TELEGRAM_ERROR_CHAT_ID", ""))
     DEEPL_API_KEY: str = field(default_factory=lambda: os.getenv("DEEPL_API_KEY", ""))
     DEEPL_API_URL: str = field(default_factory=lambda: os.getenv("DEEPL_API_URL", "https://api-free.deepl.com/v2/translate"))
     SCRAPE_INTERVAL_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_HOURS", "6")))
-    # Random scrape interval range (hours). When both are set and
-    # SCRAPE_INTERVAL_MAX_HOURS > SCRAPE_INTERVAL_MIN_HOURS, the scheduler
-    # re-schedules each cycle with a random delay within [min, max].
     SCRAPE_INTERVAL_MIN_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_MIN_HOURS", "0")))
     SCRAPE_INTERVAL_MAX_HOURS: int = field(default_factory=lambda: int(os.getenv("SCRAPE_INTERVAL_MAX_HOURS", "0")))
     TRIGGER_TOKEN: str = field(default_factory=lambda: os.getenv("TRIGGER_TOKEN", ""))
-    # Jobs older than this are pruned automatically after every scrape cycle.
     JOB_RETENTION_DAYS: int = field(default_factory=lambda: int(os.getenv("JOB_RETENTION_DAYS", "30")))
     KEYWORDS: List[str] = field(default_factory=lambda: [k.strip().lower() for k in os.getenv("KEYWORDS", _default_keywords).split(",") if k.strip()])
     LOCATIONS: List[str] = field(default_factory=lambda: [l.strip().lower() for l in os.getenv("LOCATIONS", _default_locations).split(",") if l.strip()])
@@ -54,9 +45,6 @@ config = Config()
 
 
 def random_scrape_interval_hours() -> int:
-    """Return the scrape interval in hours, honoring the random [min, max] range
-    when configured. Falls back to the fixed SCRAPE_INTERVAL_HOURS otherwise.
-    """
     lo = config.SCRAPE_INTERVAL_MIN_HOURS
     hi = config.SCRAPE_INTERVAL_MAX_HOURS
     if lo > 0 and hi > lo:

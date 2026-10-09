@@ -4,8 +4,6 @@ After=network.target network-online.target
 Wants=network-online.target
 
 [Service]
-# Path dynamic: sesuaikan WorkingDirectory dan ExecStart dengan direktori instalasi device Anda
-# atau gunakan format portable %h (user home directory) jika ditaruh di systemd user service.
 Type=simple
 WorkingDirectory=%h/lokerscraper-surabaya
 ExecStart=/usr/bin/env python3 api/app.py

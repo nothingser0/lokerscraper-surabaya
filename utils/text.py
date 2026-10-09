@@ -11,16 +11,15 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _CTRL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 _WS_RE = re.compile(r"\s+")
 
-_WEEKDAYS_ID = [
+_WEEKDAYS = [
     "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu",
 ]
 
-_MONTHS_ID = [
+_MONTHS = [
     "Januari", "Februari", "Maret", "April", "Mei", "Juni",
     "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ]
 
-# Common ISO-ish date patterns: YYYY-MM-DD, YYYY/MM/DD, DD-MM-YYYY, DD/MM/YYYY
 _DATE_RE = re.compile(
     r"(?P<y1>\d{4})[-/](?P<m1>\d{1,2})[-/](?P<d1>\d{1,2})|(?P<d2>\d{1,2})[-/](?P<m2>\d{1,2})[-/](?P<y2>\d{4})"
 )
@@ -29,7 +28,6 @@ _NUM_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:jt|juta|m|rb|ribu|k)", re.IGNORECA
 
 
 def parse_salary_label(label: Optional[str]) -> tuple[Optional[int], Optional[int]]:
-    """Parse salary label like 'Rp 10,000,000 – Rp 15,000,000 per month' into numeric min/max."""
     if not label:
         return None, None
     clean = label.replace("Rp", "").replace("IDR", "").replace(",", "").replace(".", "").strip()
@@ -70,7 +68,6 @@ _GLINTS_EDU_MAP = {
     "MASTER": "S2",
 }
 
-# LinkedIn seniority-level labels → Indonesian.
 _EXPERIENCE_LEVEL_MAP = {
     "internship": "Magang",
     "entry level": "Level Pemula",
@@ -109,8 +106,7 @@ def decode_glints_education(code: Any) -> Optional[str]:
     return _GLINTS_EDU_MAP.get(str(code).upper())
 
 
-def format_experience_id(value: Optional[str]) -> str:
-    """Normalize an experience/seniority label to Indonesian (or pass through)."""
+def format_experience(value: Optional[str]) -> str:
     if not value:
         return "N/A"
     text = sanitize_text(str(value)).strip()
@@ -121,11 +117,7 @@ def format_experience_id(value: Optional[str]) -> str:
     return text
 
 
-# Human-readable Indonesian labels for raw benefit slugs across sources.
-# Keys are the exact raw slugs emitted by each platform. Unknown slugs are
-# passed through unchanged (see decode_benefit) so no information is lost.
 _BENEFIT_MAP = {
-    # Kalibrr perks.types slugs
     "car": "Mobil Dinas",
     "child_care": "Fasilitas Penitipan Anak",
     "family_leave": "Cuti Keluarga",
@@ -141,7 +133,6 @@ _BENEFIT_MAP = {
     "special_for_women": "Fasilitas Khusus Wanita",
     "trans": "Tunjangan Transportasi",
     "wfh": "Bisa Kerja dari Rumah",
-    # SejutaCita benefits slugs (camelCase)
     "competitivesalary": "Gaji Kompetitif",
     "bonussystem": "Sistem Bonus",
     "casualdresscode": "Busana Santai",
@@ -155,7 +146,6 @@ _BENEFIT_MAP = {
     "annual bonus": "Bonus Tahunan",
     "facility reimbursement": "Reimbursement Fasilitas",
     "birthday treat": "Hadiah Ulang Tahun",
-    # SejutaCita benefits slugs (camelCase) discovered via live probe
     "companyoutings": "Kegiatan Perusahaan (Company Outing)",
     "freelunch": "Makan Siang Gratis",
     "gymmembership": "Keanggotaan Gym",
@@ -165,7 +155,6 @@ _BENEFIT_MAP = {
     "selfdevelopmentallowance": "Tunjangan Pengembangan Diri",
     "transport": "Tunjangan Transportasi",
     "vacationtime": "Waktu Libur",
-    # SejutaCita free-text benefit labels (English → Indonesian)
     "early wages program": "Program Gaji Awal",
     "flexible working environment": "Lingkungan Kerja Fleksibel",
     "health insurance": "Asuransi Kesehatan",
@@ -175,11 +164,6 @@ _BENEFIT_MAP = {
 
 
 def decode_benefit(raw: Any) -> Optional[str]:
-    """Map a raw benefit slug to a human-readable Indonesian label.
-
-    Unknown slugs are returned as-is (normalized) so no benefit is dropped.
-    ``None``/empty returns ``None``.
-    """
     if raw is None:
         return None
     text = str(raw).strip()
@@ -201,21 +185,15 @@ def sanitize_text(text: Optional[str]) -> str:
     return _WS_RE.sub(" ", text).strip()
 
 
-def format_date_id(value: Optional[str]) -> str:
-    """Format an ISO/date string as an Indonesian date: ``Senin, 20 Agustus 2025``.
-
-    Accepts full ISO timestamps (``2025-08-20T...``), plain ``YYYY-MM-DD``,
-    and ``DD-MM-YYYY``. Returns the original value when it cannot be parsed.
-    """
+def format_date(value: Optional[str]) -> str:
     if not value:
         return "N/A"
     value = str(value).strip()
 
-    # Full ISO timestamp: 2025-08-20T12:34:56+00:00
     iso = value.replace("Z", "+00:00")
     try:
         dt = datetime.fromisoformat(iso)
-        return f"{_WEEKDAYS_ID[dt.weekday()]}, {dt.day} {_MONTHS_ID[dt.month - 1]} {dt.year}"
+        return f"{_WEEKDAYS[dt.weekday()]}, {dt.day} {_MONTHS[dt.month - 1]} {dt.year}"
     except ValueError:
         pass
 
@@ -227,7 +205,7 @@ def format_date_id(value: Optional[str]) -> str:
             d, mo, y = int(m.group("d2")), int(m.group("m2")), int(m.group("y2"))
         try:
             dt = datetime(y, mo, d)
-            return f"{_WEEKDAYS_ID[dt.weekday()]}, {dt.day} {_MONTHS_ID[dt.month - 1]} {dt.year}"
+            return f"{_WEEKDAYS[dt.weekday()]}, {dt.day} {_MONTHS[dt.month - 1]} {dt.year}"
         except ValueError:
             pass
 
@@ -261,7 +239,7 @@ _JOB_TYPE_MAP = {
     "on_site": "On-site",
 }
 
-_WORK_MODE_MAP_ID = {
+_WORK_MODE_MAP = {
     "remote": "Remote",
     "hybrid": "Hybrid",
     "onsite": "On-site",
@@ -270,15 +248,7 @@ _WORK_MODE_MAP_ID = {
 }
 
 
-def format_job_type_id(value: Optional[str]) -> str:
-    """Normalize a job type string to a clean, human-readable label.
-
-    Examples:
-        ``FULL_TIME`` / ``Full time`` -> ``Full-time``
-        ``PART_TIME``                -> ``Part-time``
-        ``CONTRACT``                 -> ``Contract``
-        ``PROJECT_BASED``            -> ``Project-based``
-    """
+def format_job_type(value: Optional[str]) -> str:
     if not value:
         return "N/A"
     text = sanitize_text(str(value)).strip()
@@ -289,18 +259,13 @@ def format_job_type_id(value: Optional[str]) -> str:
     return _JOB_TYPE_MAP.get(key, text)
 
 
-def format_work_mode_id(value: Optional[str]) -> str:
-    """Normalize a work-mode string to a clean label (Remote/Hybrid/On-site)."""
+def format_work_mode(value: Optional[str]) -> str:
     if not value:
         return "N/A"
     text = sanitize_text(str(value)).strip().lower()
-    return _WORK_MODE_MAP_ID.get(text, sanitize_text(str(value)).strip() or "N/A")
+    return _WORK_MODE_MAP.get(text, sanitize_text(str(value)).strip() or "N/A")
 
 
-# Offline English→Indonesian glossary for common job-description phrases and
-# benefit labels. Used by translate_description_id() to humanize raw English
-# text without any external API. Keys are matched case-insensitively as whole
-# phrases (longest-first) to avoid partial-word collisions.
 _EN_GLOSSARY = [
     ("requirements", "Persyaratan"),
     ("responsibilities", "Tanggung Jawab"),
@@ -322,104 +287,92 @@ _EN_GLOSSARY = [
     ("negotiable", "Bisa dinegosiasikan"),
     ("competitive salary", "Gaji Kompetitif"),
     ("health insurance", "Asuransi Kesehatan"),
-    ("life insurance", "Asuransi Jiwa"),
-    ("paid leave", "Cuti Berbayar"),
+    ("bpjs ketenagakerjaan", "BPJS Ketenagakerjaan"),
+    ("bpjs kesehatan", "BPJS Kesehatan"),
     ("annual leave", "Cuti Tahunan"),
-    ("sick leave", "Cuti Sakit"),
-    ("maternity leave", "Cuti Melahirkan"),
-    ("parental leave", "Cuti Orang Tua"),
-    ("bonus", "Bonus"),
+    ("paid time off", "Cuti Berbayar"),
     ("performance bonus", "Bonus Kinerja"),
-    ("career development", "Pengembangan Karier"),
-    ("training", "Pelatihan"),
-    ("opportunities for growth", "Peluang Berkembang"),
-    ("experience", "Pengalaman"),
-    ("years of experience", "Tahun Pengalaman"),
-    ("entry level", "Level Pemula"),
-    ("mid-senior level", "Level Menengah-Senior"),
-    ("associate", "Asosiat"),
-    ("director", "Direktur"),
-    ("manager", "Manajer"),
-    ("team", "Tim"),
-    ("company", "Perusahaan"),
-    ("clients", "Klien"),
-    ("stakeholders", "Pemangku Kepentingan"),
-    ("we are looking for", "Kami mencari"),
-    ("we're looking for", "Kami mencari"),
-    ("you will be responsible", "Anda akan bertanggung jawab"),
-    ("you will", "Anda akan"),
-    ("you'll", "Anda akan"),
-    ("responsible for", "Bertanggung jawab atas"),
-    ("good communication skills", "Kemampuan komunikasi yang baik"),
-    ("communication skills", "Kemampuan komunikasi"),
+    ("religious holiday allowance", "Tunjangan Hari Raya (THR)"),
+    ("meal allowance", "Uang Makan"),
+    ("transport allowance", "Uang Transport"),
+    ("career growth", "Jenjang Karir"),
+    ("career development", "Pengembangan Karir"),
+    ("years of experience", "tahun pengalaman"),
+    ("bachelor degree", "S1"),
+    ("diploma degree", "D3"),
+    ("high school", "SMA/SMK"),
+    ("fresh graduate", "Lulusan Baru"),
+    ("good communication", "Komunikasi yang Baik"),
+    ("team player", "Mampu Bekerja Sama"),
     ("problem solving", "Pemecahan Masalah"),
-    ("problem-solving", "Pemecahan Masalah"),
-    ("attention to detail", "Ketelitian"),
-    ("team player", "Bisa bekerja dalam tim"),
-    ("fast learner", "Cepat belajar"),
-    ("self-motivated", "Motivasi diri tinggi"),
-    ("proficient in", "Mahir dalam"),
-    ("familiar with", "Familiar dengan"),
-    ("knowledge of", "Pengetahuan tentang"),
-    ("experience with", "Pengalaman dengan"),
-    ("experience in", "Pengalaman di bidang"),
-    ("at least", "Minimal"),
-    ("minimum", "Minimal"),
-    ("preferred", "Diutamakan"),
-    ("nice to have", "Nilai tambah"),
-    ("plus", "Nilai tambah"),
-    ("required", "Diwajibkan"),
-    ("must have", "Wajib dimiliki"),
-    ("is a plus", "Adalah nilai tambah"),
-    ("bachelor", "Sarjana"),
-    ("bachelor's degree", "Gelar Sarjana"),
-    ("master's degree", "Gelar Magister"),
-    ("degree in", "Gelar di bidang"),
-    ("computer science", "Ilmu Komputer"),
-    ("information technology", "Teknologi Informasi"),
-    ("software engineer", "Software Engineer"),
-    ("software developer", "Pengembang Perangkat Lunak"),
-    ("web developer", "Pengembang Web"),
-    ("mobile developer", "Pengembang Mobile"),
-    ("frontend", "Frontend"),
-    ("backend", "Backend"),
-    ("fullstack", "Fullstack"),
-    ("database", "Basis Data"),
-    ("cloud", "Cloud"),
-    ("api", "API"),
-    ("agile", "Agile"),
-    ("scrum", "Scrum"),
-    ("english", "Bahasa Inggris"),
-    ("indonesian", "Bahasa Indonesia"),
-    ("fluent in", "Fasih dalam"),
-    ("immediate", "Segera"),
-    ("available", "Tersedia"),
-    ("to apply", "Untuk melamar"),
-    ("apply now", "Lamar sekarang"),
+    ("work under pressure", "Bekerja di Bawah Tekanan"),
+    ("attention to detail", "Teliti"),
+    ("critical thinking", "Berpikir Kritis"),
+    ("leadership skills", "Jiwa Kepemimpinan"),
+    ("fast learner", "Cepat Belajar"),
+    ("self motivated", "Termotivasi"),
+    ("fluent in english", "Fasih Berbahasa Inggris"),
+    ("proficiency in", "Kemahiran dalam"),
+    ("experience in", "Pengalaman dalam"),
+    ("responsible for", "Bertanggung jawab untuk"),
+    ("proven experience", "Pengalaman Terbukti"),
+    ("minimum experience", "Pengalaman Minimum"),
+    ("key responsibilities", "Tanggung Jawab Utama"),
+    ("what you will do", "Tugas yang Dikerjakan"),
+    ("what we offer", "Fasilitas yang Diberikan"),
+    ("about the role", "Tentang Pekerjaan"),
+    ("about the company", "Tentang Perusahaan"),
+    ("how to apply", "Cara Melamar"),
+    ("must have", "Wajib Dimiliki"),
+    ("nice to have", "Nilai Tambah"),
+    ("preferred skills", "Keahlian yang Disukai"),
+    ("required skills", "Keahlian yang Dibutuhkan"),
+    ("role and responsibilities", "Peran dan Tanggung Jawab"),
+    ("terms and conditions", "Syarat dan Ketentuan"),
+    ("equal opportunity", "Kesempatan Setara"),
+    ("working hours", "Jam Kerja"),
+    ("office hours", "Jam Kantor"),
+    ("on-site", "Di Tempat (On-site)"),
+    ("relocation assistance", "Bantuan Relokasi"),
+    ("signing bonus", "Bonus Perekrutan"),
+    ("stock options", "Opsi Saham"),
+    ("gym membership", "Keanggotaan Gym"),
+    ("maternity leave", "Cuti Melahirkan"),
+    ("paternity leave", "Cuti Ayah"),
+    ("life insurance", "Asuransi Jiwa"),
+    ("vision insurance", "Asuransi Mata"),
+    ("dental insurance", "Asuransi Gigi"),
+    ("professional training", "Pelatihan Profesional"),
+    ("education allowance", "Tunjangan Pendidikan"),
+    ("overtime pay", "Uang Lembur"),
+    ("laptop provided", "Disediakan Laptop"),
+    ("free lunch", "Makan Siang Gratis"),
+    ("free snacks", "Camilan Gratis"),
+    ("free parking", "Parkir Gratis"),
+    ("shuttle service", "Layanan Antar-Jemput"),
+    ("probation period", "Masa Percobaan"),
+    ("immediate start", "Bisa Langsung Masuk"),
+    ("open for all", "Terbuka untuk Umum"),
+    ("urgent hiring", "Dibutuhkan Segera"),
+    ("apply now", "Lamar Sekarang"),
+    ("send your cv", "Kirim CV Anda"),
+    ("contact us", "Hubungi Kami"),
     ("click here", "Klik di sini"),
     ("please", "Silakan"),
     ("thank you", "Terima kasih"),
     ("etc", "dll"),
 ]
 
-# Sort by phrase length (descending) so longer phrases match first.
 _EN_GLOSSARY.sort(key=lambda t: len(t[0]), reverse=True)
 
 
-def translate_description_id(text: Optional[str]) -> str:
-    """Translate common English job-description phrases into Indonesian.
-
-    This is a lightweight, offline glossary pass (no external API). Longer
-    phrases are replaced first so sub-phrases do not clobber them. Only common
-    terms are translated; technical/domain words are left untouched.
-    """
+def translate_description(text: Optional[str]) -> str:
     if not text:
         return ""
     result = sanitize_text(text)
     if not result:
         return ""
 
-    # Whole-phrase, case-insensitive replacement.
     for en, id_ in _EN_GLOSSARY:
         if not id_:
             continue
@@ -433,16 +386,7 @@ def translate_description_id(text: Optional[str]) -> str:
     return result
 
 
-def format_salary_id(value: Optional[str]) -> str:
-    """Normalize a salary string into a readable Indonesian format.
-
-    Examples:
-        ``8000000`` / ``"8000000 - 12000000"`` -> ``Rp8jt - Rp12jt``
-        ``"Rp 10.000.000 – Rp 15.000.000 per month"`` -> ``Rp10jt - Rp15jt``
-        ``"{'start': 8000000, 'end': 12000000}"`` -> ``Rp8jt - Rp12jt``
-        ``"IDR up to 25M"`` -> ``Rp25jt``
-        ``"IDR 8M - 12M"`` -> ``Rp8jt - Rp12jt``
-    """
+def format_salary(value: Optional[str]) -> str:
     if not value:
         return "Not disclosed"
 
@@ -454,11 +398,9 @@ def format_salary_id(value: Optional[str]) -> str:
     if lower in ("none", "null", "not disclosed", "competitive", "negotiable"):
         return "Not disclosed"
 
-    # Strip surrounding dict/brace notation and JSON quoting.
     text = text.replace("{", "").replace("}", "").replace("'", "").replace('"', "")
 
     def _compact(num_str: str) -> str:
-        """Turn a plain number like 8000000 into ``Rp8jt``."""
         try:
             n = float(num_str)
         except (ValueError, TypeError):
@@ -475,38 +417,29 @@ def format_salary_id(value: Optional[str]) -> str:
             return f"Rp{thousands:.1f}rb"
         return f"Rp{int(n)}"
 
-    # Parse a single amount token into either a compacted "RpXjt" or a label.
     def _parse_amount(tok: str) -> str:
         tok = tok.strip()
-        # Remove leading currency words.
         tok = re.sub(r"^(?:idr|rp|usd|sgd|eur)\s*", "", tok, flags=re.IGNORECASE)
-        # Remove trailing qualifiers like "per month", "/month", "bulan".
         tok = re.sub(r"\s*(?:per|/)?\s*(month|bulan|year|tahun|day|hari)\b.*$", "", tok, flags=re.IGNORECASE).strip()
         if not tok:
             return ""
-        # "8M" / "8 m" / "8jt" / "8 juta" -> compacted Rp.
         m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*(m|jt|juta|million|mil)", tok, flags=re.IGNORECASE)
         if m:
             return _compact(str(float(m.group(1)) * 1_000_000))
         m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*(k|rb|ribu|thousand)", tok, flags=re.IGNORECASE)
         if m:
             return _compact(str(float(m.group(1)) * 1_000))
-        # "up to 25M" / "25M+" -> compact.
         m = re.search(r"(\d+(?:[.,]\d+)*(?:\.\d+)?)\s*(m|jt|juta|million|mil|k|rb|ribu)", tok, flags=re.IGNORECASE)
         if m:
             num = m.group(1).replace(",", "").replace(".", "")
             unit = m.group(2).lower()
             mult = 1_000_000 if unit in ("m", "jt", "juta", "million", "mil") else 1_000
             return _compact(str(float(num) * mult))
-        # Strip thousands separators and detect a bare number.
         bare = tok.replace(",", "").replace(".", "")
         if re.fullmatch(r"\d+", bare):
             return _compact(bare)
         return tok
 
-    # Split into range tokens. Handle both explicit ranges ("a - b") and dict
-    # notation ("start: 8000000, end: 12000000") by splitting on separators AND
-    # key fragments.
     text = re.sub(r"\b(start|end|min|max|minimum|maximum|salary)\s*[:=]", "|", text, flags=re.IGNORECASE)
     tokens = re.split(r"\s*[-–—~|]\s*", text)
 
@@ -521,7 +454,6 @@ def format_salary_id(value: Optional[str]) -> str:
         if parsed:
             out_parts.append(parsed)
 
-    # Dedup while preserving order.
     seen = set()
     unique = []
     for p in out_parts:
@@ -535,15 +467,7 @@ def format_salary_id(value: Optional[str]) -> str:
     return " - ".join(unique)
 
 
-def translate_to_id(text: Optional[str]) -> str:
-    """Translate a job description to Bahasa Indonesia using DeepL.
-
-    Translation is opt-in: when no DeepL key is configured, the original text
-    is returned unchanged (no partial glossary translation). On API failure the
-    original text is also returned so notifications never break.
-
-    Newlines are preserved so paragraph/list structure survives translation.
-    """
+def translate_to_indonesian(text: Optional[str]) -> str:
     cleaned = text if text else ""
     cleaned = _normalize_description(cleaned)
     if not cleaned:
@@ -589,55 +513,31 @@ def translate_to_id(text: Optional[str]) -> str:
 
 
 def _normalize_description(text: Optional[str]) -> str:
-    """Clean job description HTML/text while PRESERVING paragraph structure.
-
-    Unlike `sanitize_text` (which flattens everything to one line), this keeps
-    newlines so headings, bullets, and paragraphs remain readable in Discord.
-    """
     if not text:
         return ""
     text = html.unescape(text)
-    # Structural tags become newlines instead of spaces.
     text = re.sub(r"(?i)<br\s*/?>|</p>|</h\d>|</div>|</ul>|</ol>|<button[^>]*>|</button>", "\n", text)
-    # Each list item starts on its own line with a bullet.
     text = re.sub(r"(?i)<li[^>]*>", "\n• ", text)
     text = re.sub(r"(?i)<ul[^>]*>|<ol[^>]*>", "\n", text)
     text = _TAG_RE.sub(" ", text)
     text = unicodedata.normalize("NFKC", text)
-    # Remove control chars EXCEPT newlines (we preserve paragraph structure).
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", text)
-    # Collapse runs of spaces on a single line, but keep newlines.
     lines = [re.sub(r"[ \t]+", " ", ln).strip() for ln in text.splitlines()]
-    # Drop empty lines but keep single blank lines between paragraphs.
     out: list = []
     for ln in lines:
         if ln:
             out.append(ln)
         elif out and out[-1] != "":
             out.append("")
-    # Drop LinkedIn's "Show more"/"Show less" toggle labels (standalone lines).
     out = [ln for ln in out if ln and ln.strip().lower() not in ("show more", "show less")]
     return "\n".join(out).strip()
 
 
 def clean_description(text: Optional[str]) -> str:
-    """Public alias for cleaning descriptions while preserving structure.
-
-    Scrapers should use this (instead of `sanitize_text`) for `job_description`
-    and `qualifications` fields so paragraph/list structure survives to Discord.
-    """
     return _normalize_description(text)
 
 
 def draftjs_to_text(raw: Any) -> Optional[str]:
-    """Convert a Draft.js `descriptionRaw` payload (Glints) into multi-line text.
-
-    Glints stores job descriptions as Draft.js content state:
-        {"blocks": [{"text": "...", "type": "unstyled" | "unordered-list-item" | ...}]}
-
-    Empty blocks separate paragraphs; list-item blocks become "• " bullets.
-    Returns None when the payload has no extractable text.
-    """
     if not isinstance(raw, dict):
         return None
     blocks = raw.get("blocks")
@@ -662,13 +562,10 @@ def draftjs_to_text(raw: Any) -> Optional[str]:
                 lines.append(text)
                 lines.append("")
         else:
-            # "unstyled" or unknown: paragraph. Empty text = paragraph break.
             if text:
                 lines.append(text)
-            elif lines and lines[-1] != "":
                 lines.append("")
 
-    # Collapse trailing blank lines.
     while lines and lines[-1] == "":
         lines.pop()
 
@@ -676,19 +573,12 @@ def draftjs_to_text(raw: Any) -> Optional[str]:
     return result or None
 
 
-def format_description_id(description: Optional[str], max_len: int = 500) -> str:
-    """Translate (opt-in) and neatly format a job description for Discord.
-
-    Returns a multi-line string with paragraph breaks preserved and long runs
-    broken into readable chunks. Falls back to the original text untouched when
-    translation is unavailable.
-    """
-    translated = translate_to_id(description)
+def format_description(description: Optional[str], max_len: int = 500) -> str:
+    translated = translate_to_indonesian(description)
     if not translated:
         return ""
     if len(translated) <= max_len:
         return translated
-    # Truncate on a line boundary when possible.
     cut = translated[:max_len]
     if "\n" in cut:
         cut = cut.rsplit("\n", 1)[0]

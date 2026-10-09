@@ -66,7 +66,6 @@ class StorageService:
         atomic_write(filepath, content)
 
     def load_jobs(self) -> List[Dict[str, Any]]:
-        """Load all jobs directly from SQLite database."""
         jobs = []
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
@@ -127,7 +126,6 @@ class StorageService:
         return total, jobs
 
     def save_jobs(self, jobs: List[Dict[str, Any]]) -> None:
-        """Save jobs list to SQLite and record lastUpdated timestamp."""
         self._sync_to_sqlite(jobs)
         now_str = datetime.now(timezone.utc).isoformat()
         try:
@@ -137,7 +135,6 @@ class StorageService:
             logger.error(f"Error updating meta in SQLite: {e}")
 
     def get_last_updated(self) -> Optional[str]:
-        """Retrieve lastUpdated timestamp from SQLite meta table."""
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
                 row = conn.execute("SELECT value FROM meta WHERE key = 'lastUpdated'").fetchone()
@@ -148,10 +145,6 @@ class StorageService:
         return None
 
     def record_scraper_run(self, scraper_name: str, success: bool) -> int:
-        """Track consecutive failure streaks per scraper in SQLite.
-        
-        Returns the current failure streak count for this scraper.
-        """
         key = f"fail_streak_{scraper_name}"
         current_fails = 0
         try:
@@ -172,7 +165,6 @@ class StorageService:
             return 0
 
     def _sync_to_sqlite(self, jobs: List[Dict[str, Any]]) -> None:
-        """Upsert jobs into SQLite database."""
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
                 for j in jobs:
@@ -198,7 +190,6 @@ class StorageService:
             logger.error(f"Error syncing jobs to SQLite: {e}")
 
     def load_seen_ids(self) -> Set[str]:
-        """Load set of seen job IDs from SQLite."""
         ids: Set[str] = set()
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
@@ -209,7 +200,6 @@ class StorageService:
         return ids
 
     def save_seen_ids(self, ids: Set[str]) -> None:
-        """Persist seen job IDs into SQLite (idempotent upsert)."""
         try:
             now = datetime.now(timezone.utc).isoformat()
             with sqlite3.connect(self.sqlite_file) as conn:
@@ -226,7 +216,6 @@ class StorageService:
         cutoff_date = cutoff_iso[:10]
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
-                # Delete rows where created_at is older than cutoff or posted_at is older than cutoff date
                 cursor = conn.execute("""
                     DELETE FROM jobs 
                     WHERE (created_at IS NOT NULL AND created_at != '' AND created_at < ?)
@@ -271,7 +260,6 @@ class StorageService:
             self.vacuum_database()
 
     def vacuum_database(self) -> None:
-        """Reclaim unused disk space in SQLite database after deletion (VACUUM)."""
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
                 conn.execute("VACUUM")
@@ -280,7 +268,6 @@ class StorageService:
             logger.error(f"Error vacuuming SQLite database: {e}")
 
     def cleanup_old_logs(self, days: int = 30) -> None:
-        """Delete daily log files older than specified days to preserve storage."""
         try:
             cutoff = datetime.now() - timedelta(days=days)
             for log_file in self.logs_dir.glob("jobs-*"):
@@ -297,12 +284,10 @@ class StorageService:
             logger.error(f"Error cleaning old logs: {e}")
 
     def trim_seen_ids(self, max_limit: int = 10000, target_limit: int = 5000) -> None:
-        """Trim seen IDs to target_limit if max_limit is exceeded."""
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
                 total = conn.execute("SELECT COUNT(*) FROM seen_ids").fetchone()[0]
                 if total > max_limit:
-                    # Keep the most recent target_limit rows, drop the rest.
                     conn.execute("""
                         DELETE FROM seen_ids WHERE id NOT IN (
                             SELECT id FROM seen_ids ORDER BY created_at DESC LIMIT ?
@@ -313,7 +298,6 @@ class StorageService:
             logger.error(f"Error trimming seen IDs: {e}")
 
     def log_daily_jobs(self, jobs: List[Dict[str, Any]]) -> None:
-        """Save scraped jobs to daily JSON and TXT log files."""
         if not jobs:
             return
 

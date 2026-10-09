@@ -20,9 +20,6 @@ class LinkedInScraper(BaseScraper):
 
     def __init__(self):
         super().__init__()
-        # LinkedIn aggressively rate-limits unauthenticated requests (429).
-        # Space out requests generously. Detail pages for already-seen jobs are
-        # skipped (see fetch_jobs), so per-cycle request count stays low.
         self.request_delay = 30.0
         self._rate_limit_backoff = 120.0
         self.headers = {
@@ -32,7 +29,6 @@ class LinkedInScraper(BaseScraper):
         }
 
     def _fetch_job_detail(self, raw_id: str) -> Dict[str, Any]:
-        """Fetch detail HTML from https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{raw_id}"""
         url = f"https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{raw_id}"
         details: Dict[str, Any] = {
             "job_description": None,
@@ -46,16 +42,12 @@ class LinkedInScraper(BaseScraper):
             if resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "html.parser")
 
-                # Description section
                 desc_el = soup.find("div", class_=re.compile(r"show-more-less-html__markup|description__text"))
                 if desc_el:
-                    # Pass raw HTML (not get_text) so clean_description can
-                    # convert <br>/<li>/<ul>/<p> into newlines & bullets.
                     full_desc = clean_description(str(desc_el))
                     if full_desc:
                         details["job_description"] = full_desc
 
-                # Seniority level (experience)
                 criteria_list = soup.find_all("li", class_=re.compile(r"description__job-criteria-item"))
                 for item in criteria_list:
                     header = item.find("h3")
@@ -64,8 +56,6 @@ class LinkedInScraper(BaseScraper):
                         htext = header.get_text(strip=True).lower()
                         vtext = val.get_text(strip=True)
                         if "seniority" in htext:
-                            # LinkedIn uses "Not Applicable" when no seniority level
-                            # is set; treat it as no data instead of a raw label.
                             details["experience"] = vtext if vtext and vtext.strip().lower() != "not applicable" else None
                         elif "industries" in htext or "industry" in htext:
                             details["company_industry"] = vtext
@@ -89,8 +79,6 @@ class LinkedInScraper(BaseScraper):
             try:
                 response = self._get(self.ENDPOINT, headers=self.headers, params=params, timeout=10)
 
-                # On a 429, wait out LinkedIn's cooldown then retry once before
-                # giving up on this cycle. This trades time for stability.
                 if response.status_code == 429:
                     logger.warning(
                         f"LinkedIn returned 429 for keyword {kw}; backing off "
@@ -169,7 +157,6 @@ class LinkedInScraper(BaseScraper):
                     else:
                         work_mode = "On-site"
 
-                    # Parse applicant count if available
                     applicant_count = None
                     app_el = card.find("span", class_=re.compile(r"job-search-card__num-applicants"))
                     if app_el:
@@ -178,7 +165,6 @@ class LinkedInScraper(BaseScraper):
                         if m:
                             applicant_count = int(m.group(1))
 
-                    # Skip detail fetch for jobs already stored in a prior cycle.
                     details = {} if self.is_seen(raw_id) else self._fetch_job_detail(raw_id)
 
                     item = new_job_dict(

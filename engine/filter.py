@@ -39,17 +39,14 @@ LOCATIONS_RE = re.compile(
 )
 
 def matches_keywords(job: Dict[str, Any]) -> bool:
-    """Check if job title or content matches configured search keywords."""
     if not KEYWORDS:
         return True
     title = str(job.get("title") or "")
-    # If keywords are configured, match against title dynamically
     return bool(KEYWORDS_RE.search(title))
 
 is_it_job = matches_keywords
 
 def is_valid_location(job: Dict[str, Any]) -> bool:
-    """Check if job location matches allowed locations or work modes."""
     location = str(job.get("location") or "")
     title = str(job.get("title") or "")
     work_mode = str(job.get("work_mode") or "")
@@ -57,5 +54,4 @@ def is_valid_location(job: Dict[str, Any]) -> bool:
     return bool(LOCATIONS_RE.search(text))
 
 def filter_jobs(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Filter jobs by title and location criteria."""
     return [job for job in jobs if matches_keywords(job) and is_valid_location(job)]

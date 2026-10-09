@@ -10,7 +10,7 @@ from utils.text import (
     sanitize_text,
     clean_description,
     draftjs_to_text,
-    format_job_type_id,
+    format_job_type,
     decode_glints_education,
 )
 from engine.filter import matches_keywords
@@ -34,12 +34,6 @@ class GlintsScraper(BaseScraper):
         }
 
     def _fetch_job_detail(self, raw_id: str) -> Dict[str, Any]:
-        """Fetch the full job description from Glints' JSON detail endpoint.
-
-        The list endpoint (`initialJobs`) only exposes title/skills/salary; the
-        full body lives behind `https://glints.com/api/jobs/{id}` as a Draft.js
-        `descriptionRaw` payload. Convert that into multi-line text.
-        """
         url = f"https://glints.com/api/jobs/{raw_id}"
         details: Dict[str, Any] = {
             "job_description": None,
@@ -192,7 +186,7 @@ class GlintsScraper(BaseScraper):
                     created_at_str = created_at if isinstance(created_at, str) else ""
                     posted_at = created_at_str[:10] if len(created_at_str) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-                    job_type = format_job_type_id(str(job.get("type") or "FULL_TIME"))
+                    job_type = format_job_type(str(job.get("type") or "FULL_TIME"))
 
                     skills_list = []
                     raw_skills = job.get("skills")
@@ -216,11 +210,8 @@ class GlintsScraper(BaseScraper):
 
                     education = decode_glints_education(job.get("educationLevel"))
 
-                    # List endpoint has no body; fetch the full description from
-                    # the JSON detail endpoint when available.
                     job_desc = clean_description(job.get("description")) or None
                     qualifications = clean_description(job.get("requirements")) or None
-                    # Optimization: fetch full detail description only if IT keywords match
                     candidate_job = {"title": title, "location": location_str, "work_mode": work_mode}
                     detail = self._fetch_job_detail(raw_id) if (matches_keywords(candidate_job) and not self.is_seen(raw_id)) else {}
                     if detail.get("job_description"):

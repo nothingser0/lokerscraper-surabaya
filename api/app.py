@@ -8,7 +8,6 @@ import threading
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Configure logging to both console and file
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
@@ -23,9 +22,6 @@ logging.basicConfig(
     ]
 )
 
-# Ensure the project root is on sys.path so that `python api/app.py`
-# (used by Docker CMD, systemd ExecStart, and local dev) can resolve
-# sibling top-level packages: config, storage, engine, scrapers, notifiers.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -85,7 +81,6 @@ scheduler.start()
 
 @app.route("/", methods=["GET"])
 def dashboard():
-    """Serve a clean Swiss/editorial modern dashboard inspired by the reference design."""
     from flask import make_response
     resp = make_response("""<!DOCTYPE html>
 <html lang="id">
@@ -120,18 +115,11 @@ def dashboard():
     body { background-color: #ECECE8; color: #111111; }
     .display-title { letter-spacing: -0.04em; line-height: 0.92; font-weight: 800; }
     .pill-btn { border-radius: 9999px; }
-    /* Fixed height for the animated keyword line. Keywords are dynamic (loaded
-       from .env) and each is auto-shrunk to fit, so the line must NOT derive its
-       height from the current word/font — otherwise the whole hero row (and the
-       "Active Opportunities" section below it) jumps on every empty/switch. */
     .hero-word-line { height: 66px; line-height: 66px; }
     @media (min-width: 640px) { .hero-word-line { height: 76px; line-height: 76px; } }
     @media (min-width: 768px) { .hero-word-line { height: 102px; line-height: 102px; } }
     .hero-word-line #heroWordMain { line-height: inherit; }
-    /* When text is erased between words, keep an invisible non-breaking space
-       so the inline-block line box never collapses down to 0 height. */
     #heroWordMain:empty::before { content: '\00a0'; visibility: hidden; }
-    /* Lime highlight behind the animated keyword for emphasis */
     .hero-highlight {
       background: linear-gradient(180deg, transparent 62%, #D4F542 62%);
       padding: 0 0.08em 0 0;
@@ -142,7 +130,6 @@ def dashboard():
       background-image: radial-gradient(rgba(0,0,0,0.09) 1px, transparent 0);
       background-size: 24px 24px;
     }
-    /* Badge subtle pulse & shimmer */
     @keyframes badgeGlow {
       0%, 100% { border-color: rgba(0, 0, 0, 0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
       50% { border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 0 12px rgba(16, 185, 129, 0.12); }
@@ -150,7 +137,6 @@ def dashboard():
     .badge-animated {
       animation: badgeGlow 3s ease-in-out infinite;
     }
-    /* Radar smooth breathing wave */
     @keyframes radarPulse {
       0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(212, 245, 66, 0.7); }
       70% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(212, 245, 66, 0); }
@@ -159,7 +145,6 @@ def dashboard():
     .radar-dot {
       animation: radarPulse 2.2s cubic-bezier(0.23, 1, 0.32, 1) infinite;
     }
-    /* Typewriter cursor effect */
     .cursor-blink {
       display: inline-block;
       width: 3px;
@@ -172,10 +157,6 @@ def dashboard():
     @keyframes blink {
       to { visibility: hidden; }
     }
-    /* Vertical motivation strips. Native vertical text avoids the subpixel blur
-       of rotate(90deg), the mask fades both ends instead of hard-clipping, and
-       because verticality comes from writing-mode (not a transform) the text
-       still renders correctly when animations are blocked by an extension. */
     .marquee-sidebar {
       display: flex;
       align-items: center;
@@ -200,10 +181,6 @@ def dashboard():
       white-space: nowrap;
       will-change: transform;
     }
-    /* Sisi kiri: rotasi -90deg, arah hanyut dari ATAS ke BAWAH.
-       Sisi kanan: rotasi 90deg, arah hanyut dari BAWAH ke ATAS.
-       Masing-masing berisi 2 salinan kalimat identik: pergeseran tepat 50%
-       menghasilkan seamless loop tanpa hentakan. */
     .marquee-left {
       transform: translate(-50%, -50%) rotate(-90deg);
       animation: marqueeLeftDown 65s linear infinite;
@@ -224,7 +201,6 @@ def dashboard():
 </head>
 <body class="p-3 sm:p-6 md:p-10 antialiased selection:bg-limepill selection:text-black noise-bg min-h-screen w-full overflow-x-hidden">
   
-  <!-- Left Motivation: Visible on all desktop screens (1280px+) -->
   <div class="marquee-sidebar fixed left-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
     <div class="marquee-track marquee-left text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-black/[0.26] uppercase select-none">
       <span class="font-mono text-xs tracking-widest text-neutral-400 font-semibold">[01/EAST-JAVA]</span>
@@ -246,7 +222,6 @@ def dashboard():
     </div>
   </div>
 
-  <!-- Right Motivation: Visible on all desktop screens (1280px+) -->
   <div class="marquee-sidebar fixed right-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
     <div class="marquee-track marquee-right text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-black/[0.26] uppercase select-none">
       <span class="font-mono text-xs tracking-widest text-neutral-400 font-semibold">[02/ENGINEERING]</span>
@@ -268,7 +243,6 @@ def dashboard():
     </div>
   </div>
 
-  <!-- Custom Modal: Trigger Scrape Token Prompt -->
   <div id="tokenModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
     <div class="bg-[#181818] border border-neutral-700/80 rounded-3xl p-6 md:p-8 max-w-sm w-full space-y-5 shadow-2xl text-white">
       <div class="space-y-1">
@@ -287,7 +261,6 @@ def dashboard():
     </div>
   </div>
 
-  <!-- Custom Toast Notification -->
   <div id="toastNotification" class="hidden fixed bottom-6 right-6 z-50 bg-[#181818] border border-neutral-700 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs transition">
     <span class="w-2 h-2 rounded-full bg-limepill animate-ping" id="toastDot"></span>
     <span id="toastMsg" class="font-medium">Notification</span>
@@ -295,10 +268,8 @@ def dashboard():
 
   <div class="max-w-6xl mx-auto space-y-4 md:space-y-6 relative z-10 w-full">
     
-    <!-- Editorial Top Hero Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
       
-      <!-- Left Large Card (Typography & Stats) -->
       <div class="lg:col-span-8 bg-[#F8F8F5] rounded-3xl p-5 sm:p-7 md:p-9 border border-black/5 shadow-sm flex flex-col justify-start space-y-4 md:space-y-5">
         <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
@@ -307,7 +278,6 @@ def dashboard():
               <span id="heroStreamBadge" class="text-[11px] font-bold tracking-widest uppercase text-neutral-200">Surabaya Opportunities</span>
             </span>
           </div>
-          <!-- Desktop Nav Actions -->
           <div class="hidden sm:flex items-center gap-2">
             <button id="triggerBtn" onclick="triggerScrape()" class="pill-btn bg-limepill hover:brightness-95 text-black font-semibold px-4 py-2 text-xs flex items-center gap-1.5 transition">
             <span>Scrape Now</span>
@@ -319,7 +289,6 @@ def dashboard():
             </a>
             <a href="/api/jobs" target="_blank" class="pill-btn bg-black text-white hover:bg-neutral-800 px-4 py-2 text-xs transition">API</a>
           </div>
-          <!-- Mobile 3-Bar Hamburger Trigger -->
           <div class="relative sm:hidden">
             <button onclick="toggleMobileNav()" class="w-9 h-9 rounded-full bg-neutral-900 border border-neutral-800 text-white flex items-center justify-center text-sm focus:outline-none">
               ≡
@@ -356,7 +325,6 @@ def dashboard():
           </h2>
         </div>
 
-        <!-- Dynamic Tags from ENV: Matching Reference Poster Typography -->
         <div class="pt-2.5 border-t border-black/5 font-sans min-w-0">
           <div class="bg-black/[0.04] border border-black/[0.06] rounded-2xl p-3 space-y-2.5 min-w-0">
           <div class="space-y-1.5 min-w-0">
@@ -370,7 +338,6 @@ def dashboard():
           </div>
         </div>
 
-        <!-- 3 & 4. Bottom Stats: Last Update Real & Platform Counter Berkontras Jelas -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-2.5 border-t border-black/5 text-xs">
           <div class="sm:col-span-3">
             <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Last Updated</div>
@@ -388,7 +355,6 @@ def dashboard():
         </div>
       </div>
 
-      <!-- Right Column: Visual Hero Card + Live Log Terminal -->
       <div class="lg:col-span-4 flex flex-col gap-4 min-h-0">
 
         <div class="bg-neutral-900 rounded-3xl overflow-hidden relative min-h-[180px] sm:min-h-[220px] lg:min-h-0 lg:h-[230px] shrink-0 border border-black/10 shadow-sm group">
@@ -411,7 +377,6 @@ def dashboard():
           </div>
         </div>
 
-        <!-- Live scraper log terminal -->
         <div class="bg-[#0B0B0B] rounded-3xl border border-black/10 shadow-sm overflow-hidden flex flex-col h-[260px] lg:h-auto lg:flex-1 lg:basis-0 lg:min-h-[200px]">
           <div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-neutral-800 bg-[#151515] shrink-0">
             <span class="w-2.5 h-2.5 rounded-full bg-[#FF5F56]"></span>
@@ -429,10 +394,8 @@ def dashboard():
 
     </div>
 
-    <!-- Jobs Feed Section (Dark Contrast block as in reference) -->
     <div id="curatedSection" class="bg-[#111111] text-white rounded-3xl p-4 sm:p-6 md:p-8 space-y-5 md:space-y-6">
       
-      <!-- Section Header -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-800 pb-5">
         <div class="flex flex-col items-start gap-1.5 min-w-0">
           <span class="inline-block px-2.5 py-0.5 rounded-full border border-neutral-700 text-[10px] uppercase tracking-wider text-neutral-400 shrink-0">Curated Stream</span>
@@ -487,12 +450,10 @@ def dashboard():
         </div>
       </div>
 
-      <!-- Job Cards Stream -->
       <div id="jobsList" class="space-y-2.5">
         <div class="text-neutral-500 text-sm py-8 text-center">Loading live positions...</div>
       </div>
 
-      <!-- Pagination Controls (Editorial style as in reference bottom circles) -->
       <div id="paginationContainer" class="pt-6 pb-6 sm:pb-3 border-t border-neutral-800 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-neutral-400">
         <div id="paginationInfo">Showing 0-0 of 0</div>
         <div class="flex items-center gap-2">
@@ -520,7 +481,6 @@ def dashboard():
 
     </div>
 
-    <!-- Bottom Footer -->
     <footer class="pt-8 pb-14 border-t border-black/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-neutral-500">
       <div class="flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
         <div class="flex items-center gap-2">
@@ -547,7 +507,7 @@ def dashboard():
     let allJobs = [];
     let currentPage = 1;
     const pageSize = 10;
-    let filteredTotal = 0;   // last filtered result size, used by jumpToPage
+    let filteredTotal = 0;
     let showBookmarksOnly = false;
     let selectedPlatform = '';
     let selectedMode = '';
@@ -595,7 +555,6 @@ def dashboard():
       renderJobs();
     }
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', function(e) {
       const wrapper = document.getElementById('customDropdownWrapper');
       if (wrapper && !wrapper.contains(e.target)) {
@@ -679,11 +638,9 @@ def dashboard():
           retEl.innerText = `Auto-prune ${data.retentionDays}d${mb}`;
         }
         
-        // Dynamic Locations & Keywords from ENV
         if (data.locations && data.locations.length) {
           const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
           const primaryLoc = cap(data.locations[0]);
-          // Prefer a work-mode style entry (remote/hybrid); never repeat another city.
           const modeEntry = data.locations.find(l => ['remote', 'hybrid', 'wfh'].includes(l.toLowerCase()));
           document.getElementById('heroSubtitle').innerText = `${primaryLoc} & ${cap(modeEntry || 'remote')}`;
           document.getElementById('heroStreamBadge').innerText = `${primaryLoc} Opportunities`;
@@ -702,8 +659,6 @@ def dashboard():
 
         const platforms = data.platforms || (data.sourceCounts ? Object.keys(data.sourceCounts) : []);
         if (data.sourceCounts) {
-          // Force exactly 2 rows: columns = ceil(count / 2). Keeps the layout
-          // stable no matter how many platforms get registered later.
           const gridEl = document.getElementById('statSources');
           const rows = 2;
           const cols = Math.max(2, Math.ceil(platforms.length / rows));
@@ -718,7 +673,6 @@ def dashboard():
               : platforms.join(', ');
             document.getElementById('platformNamesBanner').innerText = `Continuous automated aggregation across ${displayedPlatforms}.`;
             
-            // Populate custom rounded popup menu
             const menuEl = document.getElementById('sourceFilterMenu');
             menuEl.innerHTML = `
               <div onclick="selectPlatform('', 'All Platforms')" class="px-4 py-2 hover:bg-neutral-800 text-neutral-200 cursor-pointer flex items-center justify-between transition">
@@ -792,7 +746,6 @@ def dashboard():
         return matchText && matchSrc && matchMode && matchBookmark;
       });
 
-      // Sorting logic: Default terbaru
       filtered.sort((a, b) => {
         if (selectedSort === 'salary_high') {
           const salA = a.salary_max || a.salary_min || 0;
@@ -802,7 +755,6 @@ def dashboard():
         if (selectedSort === 'title_asc') {
           return (a.title || '').localeCompare(b.title || '');
         }
-        // 'newest' sort by posted_at or scraped_at
         const dateA = a.posted_at || a.scraped_at || '';
         const dateB = b.posted_at || b.scraped_at || '';
         return dateB.localeCompare(dateA);
@@ -818,7 +770,6 @@ def dashboard():
       const endIdx = Math.min(startIdx + pageSize, total);
       const pageJobs = filtered.slice(startIdx, endIdx);
 
-      // Update Pagination UI
       document.getElementById('paginationInfo').innerText = total ? `Showing ${startIdx + 1}–${endIdx} of ${total} jobs` : '0 jobs';
       document.getElementById('pageBadge').innerText = `Page ${currentPage} / ${totalPages}`;
       document.getElementById('prevBtn').disabled = currentPage <= 1;
@@ -847,7 +798,6 @@ def dashboard():
               <span class="text-neutral-400 text-xs">${j.location || 'Surabaya'}</span>
             </div>
           </div>
-          <!-- Card Actions: Right-aligned on mobile for easy thumb reach -->
           <div class="flex items-center gap-2 self-end sm:self-center shrink-0 pt-1 sm:pt-0">
             <button onclick="toggleSaveJob('${j.id}')" title="Save job" class="w-9 h-9 rounded-full border ${savedIds.includes(j.id) ? 'border-limepill bg-limepill text-black' : 'border-neutral-700 bg-neutral-800/80 hover:bg-neutral-700 text-neutral-400 hover:text-white'} flex items-center justify-center transition">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="${savedIds.includes(j.id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -869,7 +819,6 @@ def dashboard():
       scrollToFeed();
     }
 
-    // Jump to an explicit page number (clamped to the available range).
     function jumpToPage(value) {
       const totalPages = Math.ceil(filteredTotal / pageSize) || 1;
       const n = Math.floor(Number(value));
@@ -886,7 +835,6 @@ def dashboard():
       window.scrollTo({ top: topOffset, behavior: 'smooth' });
     }
 
-    // Auto-shrink font for long chip text so nothing overflows the card.
     function chipFontSize(text) {
       const len = (text || '').length;
       if (len <= 10) return '11px';
@@ -992,9 +940,6 @@ def dashboard():
       let idx = 0;
       let isDeleting = false;
 
-      // Shrink the hero word only when the FULL word is too wide for the card,
-      // so long keywords like "quality assurance" never clip at the right edge
-      // and the size stays stable while the word types out.
       function fitFont(word) {
         const box = target.parentElement;
         const max = box.clientWidth;
@@ -1043,7 +988,6 @@ def dashboard():
       tick();
     }
 
-    // Live log terminal: poll the tail endpoint and colour-code by level.
     const logEl = document.getElementById('logTerminal');
     const logLevelClass = (line) => {
       if (line.includes('ERROR') || line.includes('Traceback')) return 'text-[#FF6B6B]';
@@ -1057,9 +1001,6 @@ def dashboard():
       const safe = l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return `<div class="truncate ${logLevelClass(l)}">${safe}</div>`;
     };
-    // Fill from the newest line, then drop the oldest rows until the content
-    // fits exactly. Measuring beats assuming a row height; the container height
-    // is locked by CSS so extra log volume can never grow the card.
     function renderLogs() {
       if (!logLines.length) return;
       logEl.innerHTML = logLines.map(logRowHtml).join('');
@@ -1074,12 +1015,11 @@ def dashboard():
         const data = await res.json();
         logLines = data.lines || [];
         const sig = logLines.join('\\n');
-        if (sig === logSig) return;   // skip DOM churn when nothing changed
+        if (sig === logSig) return;
         logSig = sig;
         renderLogs();
-      } catch (e) { /* terminal is best-effort; never block the dashboard */ }
+      } catch (e) { }
     }
-    // The card height settles after the poster/video loads; refill once it does.
     if (window.ResizeObserver) new ResizeObserver(renderLogs).observe(logEl);
 
     loadStats();
@@ -1090,8 +1030,6 @@ def dashboard():
   </script>
 </body>
 </html>""")
-    # The dashboard markup is embedded here, so a stale cached copy would keep
-    # serving old layout after every edit. Never let browsers/proxies cache it.
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     return resp
@@ -1104,7 +1042,6 @@ def health_check():
     })
 
 def _run_scrape_async(force: bool = False):
-    """Run a scrape cycle in a background thread (for manual trigger)."""
     global last_scraped_at
     try:
         runner = ScraperRunner()
@@ -1116,11 +1053,6 @@ def _run_scrape_async(force: bool = False):
 
 @app.route("/api/trigger", methods=["GET", "POST"])
 def trigger_scrape():
-    """Manually trigger a scrape cycle without waiting for the scheduler.
-
-    Use POST, or open the URL directly with GET. Add `?force=true` to also send the freshly fetched batch to Discord even if
-    no new jobs were found (useful for testing the notification path).
-    """
     configured_token = str(getattr(app_config, "TRIGGER_TOKEN", "") or os.getenv("TRIGGER_TOKEN", "")).strip()
     req_token = (request.headers.get("X-Trigger-Token") or request.args.get("token", "")).strip()
     logger.info(f"Trigger check -> configured: '{configured_token}', req: '{req_token}'")
@@ -1142,7 +1074,6 @@ def get_stats():
     jobs = storage_service.load_jobs()
     total_jobs = len(jobs)
     
-    # Dynamic list of all registered platform classes in the scraper engine
     registered_platforms = sorted([cls().source_name for cls in BaseScraper.__subclasses__()])
     
     source_counts: Dict[str, int] = {}
@@ -1172,7 +1103,6 @@ def get_stats():
 
 @app.route("/api/logs", methods=["GET"])
 def get_logs():
-    """Tail the scraper log for the dashboard terminal widget."""
     try:
         lines = int(request.args.get("lines", 40))
     except ValueError:
@@ -1184,7 +1114,6 @@ def get_logs():
         return jsonify({"lines": []})
 
     try:
-        # Read only the tail to keep memory flat on low-RAM targets.
         with open(log_path, "r", encoding="utf-8", errors="replace") as fh:
             tail = collections.deque(fh, maxlen=lines)
     except OSError as exc:
@@ -1228,7 +1157,6 @@ def get_jobs():
 
 @app.route("/api/export", methods=["GET"])
 def export_jobs_csv():
-    """Export stored jobs to CSV format."""
     import csv
     import io
     from flask import Response

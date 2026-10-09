@@ -17,9 +17,6 @@ services:
       retries: 3
       start_period: 15s
 
-  # Optional: Cloudflare Tunnel to expose dashboard (e.g., https://loker.omahkene.my.id)
-  # Activated automatically when CLOUDFLARE_TUNNEL_TOKEN is set in .env
-  # Or run explicitly with profile: docker compose --profile tunnel up -d
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: lokerscraper-tunnel

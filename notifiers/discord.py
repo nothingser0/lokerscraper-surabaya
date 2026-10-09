@@ -5,12 +5,12 @@ import requests
 
 from config import config
 from utils.text import (
-    format_date_id,
-    format_salary_id,
-    format_job_type_id,
-    format_work_mode_id,
-    format_experience_id,
-    format_description_id,
+    format_date,
+    format_salary,
+    format_job_type,
+    format_work_mode,
+    format_experience,
+    format_description,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,13 +39,10 @@ SOURCE_EMOJI = {
 
 _FIELD_MAX_LEN = 28
 _FIELD_MAX_LEN_LONG = 700
-# Discord caps a single message's total embed size at 6000 characters. Keep
-# batches small and descriptions modest so a batch never exceeds the cap.
 _BATCH_SIZE = 3
 
 
 def _clip(value: str, max_len: int = _FIELD_MAX_LEN) -> str:
-    """Truncate long values so inline field boxes stay even."""
     value = (value or "").strip()
     if len(value) <= max_len:
         return value
@@ -68,18 +65,17 @@ class DiscordNotifier:
         company = job.get("company") or "Unknown"
         location = job.get("location") or "N/A"
 
-        # Format salary from min/max
         sal_min = job.get("salary_min")
         sal_max = job.get("salary_max")
         if sal_min or sal_max:
             sal_str = f"{sal_min or ''} - {sal_max or ''}"
-            salary = format_salary_id(sal_str)
+            salary = format_salary(sal_str)
         else:
             salary = "Not disclosed"
 
-        work_mode = format_work_mode_id(job.get("work_mode") or "N/A")
-        work_type = format_job_type_id(job.get("work_type") or "N/A")
-        posted_at = format_date_id(job.get("posted_at") or "N/A")
+        work_mode = format_work_mode(job.get("work_mode") or "N/A")
+        work_type = format_job_type(job.get("work_type") or "N/A")
+        posted_at = format_date(job.get("posted_at") or "N/A")
 
         fields = [
             {"name": "Perusahaan", "value": _clip(company), "inline": True},
@@ -90,15 +86,14 @@ class DiscordNotifier:
             {"name": "Mode", "value": _clip(work_mode), "inline": True},
         ]
 
-        # Extra optional fields
         if job.get("company_industry"):
             fields.append({"name": "Industri", "value": _clip(job["company_industry"], 200), "inline": True})
         if job.get("experience"):
-            fields.append({"name": "Pengalaman", "value": _clip(format_experience_id(job["experience"])), "inline": True})
+            fields.append({"name": "Pengalaman", "value": _clip(format_experience(job["experience"])), "inline": True})
         if job.get("education"):
             fields.append({"name": "Pendidikan", "value": _clip(job["education"]), "inline": True})
         if job.get("application_deadline"):
-            fields.append({"name": "Batas Lamaran", "value": _clip(format_date_id(job["application_deadline"])), "inline": True})
+            fields.append({"name": "Batas Lamaran", "value": _clip(format_date(job["application_deadline"])), "inline": True})
         if job.get("applicant_count") is not None:
             fields.append({"name": "Pelamar", "value": str(job["applicant_count"]), "inline": True})
         if job.get("number_of_openings") is not None:
@@ -110,7 +105,7 @@ class DiscordNotifier:
             benefits_str = ", ".join(job["benefits"]) if isinstance(job["benefits"], list) else str(job["benefits"])
             fields.append({"name": "Fasilitas", "value": _clip(benefits_str, 300), "inline": False})
         if job.get("job_description"):
-            fields.append({"name": "Deskripsi", "value": format_description_id(job["job_description"], _FIELD_MAX_LEN_LONG), "inline": False})
+            fields.append({"name": "Deskripsi", "value": format_description(job["job_description"], _FIELD_MAX_LEN_LONG), "inline": False})
 
         embed = {
             "title": title,
@@ -175,7 +170,6 @@ class DiscordNotifier:
             payload = {"embeds": embeds}
             if not self._send_payload(payload):
                 success = False
-            # Delay between batches to prevent Discord webhook 429 rate limiting (max 5 req / 2s)
             if idx < len(batches) - 1:
                 time.sleep(1.2)
         if success:

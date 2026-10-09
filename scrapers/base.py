@@ -35,32 +35,20 @@ JOB_FIELDS = [
 
 
 def new_job_dict(**overrides) -> Dict[str, Any]:
-    """Return a dictionary pre-populated with all 25 canonical job schema keys set to None,
-    overridden by explicit kwargs.
-    """
     job = {field: None for field in JOB_FIELDS}
     job.update(overrides)
     return job
 
 
 class BaseScraper(ABC):
-    # Minimum delay (seconds) between consecutive HTTP requests issued by a
-    # single scraper instance. Subclasses that hit rate-limited endpoints
-    # (e.g. LinkedIn) can raise this via their own constructor.
     request_delay: float = 0.0
 
     def __init__(self) -> None:
-        # Per-instance session (NOT class-level): requests.Session is not
-        # thread-safe, and each scraper runs on its own thread in the runner.
         self._session: Optional[requests.Session] = None
         self._last_request_ts: float = 0.0
-        # Injected by ScraperRunner before each cycle so scrapers can skip
-        # re-fetching detail pages for jobs already stored (avoids the N+1
-        # bottleneck on repeat runs).
         self.seen_ids: Set[str] = set()
 
     def is_seen(self, raw_id: str) -> bool:
-        """True when this raw job id was already stored in a previous cycle."""
         if not self.seen_ids:
             return False
         from engine.dedup import generate_job_id
@@ -69,15 +57,12 @@ class BaseScraper(ABC):
     @property
     @abstractmethod
     def source_name(self) -> str:
-        """Name of the scraper source."""
         pass
 
     @property
     def session(self) -> requests.Session:
         if self._session is None:
             self._session = requests.Session()
-            # Retry transient errors AND rate-limit (429). `respect_retry_after_header`
-            # makes urllib3 honor the server's Retry-After value on 429/503.
             adapter = HTTPAdapter(
                 max_retries=Retry(
                     total=4,
@@ -94,12 +79,6 @@ class BaseScraper(ABC):
         return self._session
 
     def _throttle(self) -> None:
-        """Enforce `request_delay` between requests to avoid rate-limiting.
-
-        The delay is measured from the END of the previous request (we update
-        `_last_request_ts` only after the response arrives), so a long-running
-        request does not eat into the next request's required delay.
-        """
         if self.request_delay <= 0:
             return
         elapsed = time.monotonic() - self._last_request_ts
@@ -108,16 +87,12 @@ class BaseScraper(ABC):
             time.sleep(wait)
 
     def _get(self, url: str, **kwargs) -> requests.Response:
-        """Throttled GET wrapper so every scraper request respects request_delay."""
         self._throttle()
         try:
             return self.session.get(url, **kwargs)
         finally:
-            # Record the time AFTER the request completes so the next call's
-            # delay is measured from the true end of this request.
             self._last_request_ts = time.monotonic()
 
     @abstractmethod
     def fetch_jobs(self) -> List[Dict[str, Any]]:
-        """Fetch and return standardized list of job dictionaries."""
         pass

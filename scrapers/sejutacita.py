@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 
 from config import config
 from scrapers.base import BaseScraper, new_job_dict
-from utils.text import sanitize_text, format_job_type_id, decode_benefit
+from utils.text import sanitize_text, format_job_type, decode_benefit
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ class SejutaCitaScraper(BaseScraper):
                         raw_type = emp_types[0]
                     else:
                         raw_type = job.get("employmentType") or job.get("type") or "Full-time"
-                    work_type = format_job_type_id(str(raw_type))
+                    work_type = format_job_type(str(raw_type))
 
                     stats = job.get("stats")
                     applicant_count = None
@@ -160,9 +160,6 @@ class SejutaCitaScraper(BaseScraper):
                                     skills_list.append(sk_name)
 
                     cand_pref = job.get("candidatePreference")
-                    # SejutaCita exposes education as raw integer codes (lastEducations)
-                    # whose scale is not publicly documented, so we cannot map them to
-                    # a reliable label. Drop the field instead of leaking raw numbers.
                     edu_str = None
                     qualifications = None
                     if isinstance(cand_pref, dict):

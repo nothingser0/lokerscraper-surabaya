@@ -33,20 +33,11 @@ class ScraperRunner:
             return scraper_name, False, [], str(e)
 
     def run_cycle(self, force: bool = False) -> Dict[str, Any]:
-        """Run one scraping cycle across all scrapers in parallel.
-
-        Args:
-            force: When True, send the freshly filtered jobs to Discord even if
-                they were already seen (useful for on-demand testing). Normal
-                dedup/storage still applies.
-        """
         storage = StorageService()
         raw_jobs: List[Dict[str, Any]] = []
         errors: List[str] = []
         persistent_alerts: List[str] = []
 
-        # Inject known job ids so scrapers skip re-fetching detail pages for
-        # jobs already stored (kills the N+1 cost on repeat cycles).
         seen_ids = storage.load_seen_ids()
         for scraper in self.scrapers:
             scraper.seen_ids = seen_ids
