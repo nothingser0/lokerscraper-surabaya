@@ -206,8 +206,8 @@ def dashboard():
        elsewhere so the strip still renders vertical instead of horizontal. */
     /* Each track holds the phrase twice, so shifting by exactly one copy (50% of
        the track) lands on identical pixels and the loop has no visible seam. */
-    .marquee-left  { writing-mode: vertical-rl; writing-mode: sideways-lr; animation: marqueeDown 60s linear infinite; }
-    .marquee-right { writing-mode: vertical-rl; animation: marqueeUp   60s linear infinite; }
+    .marquee-left  { writing-mode: vertical-rl; writing-mode: sideways-lr; animation: marqueeDown 65s linear infinite; }
+    .marquee-right { writing-mode: vertical-rl; animation: marqueeUp   65s linear infinite; }
     @keyframes marqueeDown { from { transform: translateX(-50%) translateY(-50%); } to { transform: translateX(-50%) translateY(0); } }
     @keyframes marqueeUp   { from { transform: translateX(-50%) translateY(0); }    to { transform: translateX(-50%) translateY(-50%); } }
   </style>
@@ -216,15 +216,45 @@ def dashboard():
   
   <!-- Left Motivation: Visible on all desktop screens (1280px+) -->
   <div class="marquee-sidebar fixed left-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
-    <div class="marquee-track marquee-left text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.22] uppercase select-none">
-      BUILD THE FUTURE • SOLVE REAL PROBLEMS • NEVER SETTLE • BUILD THE FUTURE • SOLVE REAL PROBLEMS • NEVER SETTLE •
+    <div class="marquee-track marquee-left text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-black/[0.26] uppercase select-none flex items-center">
+      <span class="font-mono text-xs tracking-widest text-neutral-400 font-semibold">[01/EAST-JAVA]</span>
+      <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
+      <span>BUILD THE FUTURE</span>
+      <span class="text-neutral-300">•</span>
+      <span>SOLVE REAL PROBLEMS</span>
+      <span class="text-neutral-300">•</span>
+      <span>NEVER SETTLE</span>
+      <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
+      <span class="font-mono text-xs tracking-widest text-neutral-400 font-semibold">[01/EAST-JAVA]</span>
+      <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
+      <span>BUILD THE FUTURE</span>
+      <span class="text-neutral-300">•</span>
+      <span>SOLVE REAL PROBLEMS</span>
+      <span class="text-neutral-300">•</span>
+      <span>NEVER SETTLE</span>
+      <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
     </div>
   </div>
 
   <!-- Right Motivation: Visible on all desktop screens (1280px+) -->
   <div class="marquee-sidebar fixed right-0 top-0 bottom-0 w-[max(80px,calc((100vw-1152px)/2))] select-none">
-    <div class="marquee-track marquee-right text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-black/[0.22] uppercase select-none">
-      CREATE MASTERY • CODE WITH PURPOSE • SHIP WITH PRIDE • CREATE MASTERY • CODE WITH PURPOSE • SHIP WITH PRIDE •
+    <div class="marquee-track marquee-right text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-black/[0.26] uppercase select-none flex items-center">
+      <span class="font-mono text-xs tracking-widest text-neutral-400 font-semibold">[02/ENGINEERING]</span>
+      <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
+      <span>CREATE MASTERY</span>
+      <span class="text-neutral-300">•</span>
+      <span>CODE WITH PURPOSE</span>
+      <span class="text-neutral-300">•</span>
+      <span>SHIP WITH PRIDE</span>
+      <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
+      <span class="font-mono text-xs tracking-widest text-neutral-400 font-semibold">[02/ENGINEERING]</span>
+      <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
+      <span>CREATE MASTERY</span>
+      <span class="text-neutral-300">•</span>
+      <span>CODE WITH PURPOSE</span>
+      <span class="text-neutral-300">•</span>
+      <span>SHIP WITH PRIDE</span>
+      <span class="inline-block w-8 h-[2px] bg-neutral-300"></span>
     </div>
   </div>
 
