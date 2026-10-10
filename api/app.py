@@ -47,7 +47,7 @@ app = Flask(__name__, static_folder=None)
 def custom_static(filename):
     from flask import send_from_directory, make_response
     resp = make_response(send_from_directory(str(PROJECT_ROOT / "static"), filename))
-    resp.headers["Cache-Control"] = "public, max-age=86400"
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return resp
 
 storage_service = StorageService()
@@ -89,12 +89,13 @@ def dashboard():
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
+  <meta name="description" content="Agregator lowongan kerja software engineering, remote, dan tech terkini di Surabaya dan sekitarnya.">
   <title>LokerScraper Surabaya</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='10' fill='%23111111'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23D4F542'/%3E%3Cpath d='M16 4v4M16 24v4M4 16h4M24 16h4' stroke='%23D4F542' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
-  <link rel="preload" as="image" href="/static/hero_poster.jpg">
+  <link rel="preload" as="image" href="/static/hero_poster.jpg" fetchpriority="high">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -266,7 +267,7 @@ def dashboard():
     <span id="toastMsg" class="font-medium">Notification</span>
   </div>
 
-  <div class="max-w-6xl mx-auto space-y-4 md:space-y-6 relative z-10 w-full">
+  <main class="max-w-6xl mx-auto space-y-4 md:space-y-6 relative z-10 w-full">
     
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
       
@@ -320,36 +321,36 @@ def dashboard():
             </span>
             </div>
           </h1>
-          <h2 id="heroSubtitle" class="display-title text-3xl sm:text-4xl md:text-5xl font-bold text-neutral-400 pt-0.5">
+          <h2 id="heroSubtitle" class="display-title text-3xl sm:text-4xl md:text-5xl font-bold text-neutral-600 pt-0.5">
             Surabaya & Remote
           </h2>
         </div>
 
         <div class="pt-2.5 border-t border-black/5 font-sans min-w-0">
-          <div class="bg-black/[0.04] border border-black/[0.06] rounded-2xl p-3 space-y-2.5 min-w-0">
+          <div class="p-4 bg-white/70 rounded-2xl border border-black/5 space-y-3">
           <div class="space-y-1.5 min-w-0">
-            <div class="font-bold tracking-widest text-[10px] text-neutral-400 uppercase">LOCATIONS</div>
+            <div class="font-bold tracking-widest text-[10px] text-neutral-600 uppercase">LOCATIONS</div>
             <div id="envLocations" class="flex flex-wrap gap-1.5 min-w-0">Loading...</div>
           </div>
           <div class="space-y-1.5 min-w-0">
-            <div class="font-bold tracking-widest text-[10px] text-neutral-400 uppercase">KEYWORDS</div>
+            <div class="font-bold tracking-widest text-[10px] text-neutral-600 uppercase">KEYWORDS</div>
             <div id="envKeywords" class="flex flex-wrap gap-1.5 min-w-0">Loading...</div>
           </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-2.5 border-t border-black/5 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-3 border-t border-black/5 text-xs">
           <div class="sm:col-span-3">
-            <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Last Updated</div>
+            <div class="text-[11px] font-semibold text-neutral-600 uppercase tracking-wider">Last Updated</div>
             <div id="statUpdated" class="font-semibold text-neutral-800 mt-1">-</div>
           </div>
           <div class="sm:col-span-2">
-            <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Cycle Status</div>
+            <div class="text-[11px] font-semibold text-neutral-600 uppercase tracking-wider">Cycle Status</div>
             <div id="statScraped" class="font-semibold text-neutral-800 mt-1">-</div>
-            <div id="statRetention" class="text-[10px] text-neutral-400 mt-0.5" title="Old jobs are deleted automatically to keep storage flat">-</div>
+            <div id="statRetention" class="text-[10px] text-neutral-600 mt-0.5" title="Old jobs are deleted automatically to keep storage flat">-</div>
           </div>
           <div class="sm:col-span-7">
-            <div class="text-[11px] font-medium text-neutral-400 uppercase tracking-wider">Platforms</div>
+            <div class="text-[11px] font-semibold text-neutral-600 uppercase tracking-wider">Platforms</div>
             <div id="statSources" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">-</div>
           </div>
         </div>
@@ -476,10 +477,10 @@ def dashboard():
           <button id="nextBtn" onclick="changePage(1)" class="w-9 h-9 rounded-full bg-limepill hover:brightness-95 disabled:opacity-30 disabled:bg-neutral-800 flex items-center justify-center text-black font-bold transition">
             ›
           </button>
-        </div>
       </div>
-
     </div>
+
+    </main>
 
     <footer class="pt-8 pb-14 border-t border-black/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-neutral-500">
       <div class="flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
@@ -691,7 +692,8 @@ def dashboard():
 
     async function loadJobs() {
       try {
-        const res = await fetch('/api/jobs?limit=500');
+        // ponytail: initial fetch 100 jobs to avoid long JSON parsing and chain latency on mobile. Add dynamic pagination query when dataset exceeds 500.
+        const res = await fetch('/api/jobs?limit=100');
         const data = await res.json();
         allJobs = data.jobs || [];
         currentPage = 1;
@@ -941,21 +943,15 @@ def dashboard():
       let isDeleting = false;
 
       function fitFont(word) {
-        const box = target.parentElement;
-        const max = box.clientWidth;
-        if (!max) return;
-        const base = window.innerWidth >= 768 ? 96 : (window.innerWidth >= 640 ? 72 : 60);
-        let size = base;
-        target.style.fontSize = size + 'px';
-        const prev = target.textContent;
-        target.textContent = word;
-        let guard = 0;
-        while (target.scrollWidth > max && size > 24 && guard < 40) {
-          size -= 4;
-          target.style.fontSize = size + 'px';
-          guard++;
+        // ponytail: avoid forced synchronous reflow loop. Precompute size from length bracket.
+        const len = word.length;
+        let size = window.innerWidth >= 768 ? 96 : (window.innerWidth >= 640 ? 72 : 56);
+        if (len > 14) {
+          size = Math.round(size * 0.65);
+        } else if (len > 10) {
+          size = Math.round(size * 0.8);
         }
-        target.textContent = prev;
+        target.style.fontSize = size + 'px';
       }
 
       function tick() {
@@ -1025,8 +1021,8 @@ def dashboard():
     loadStats();
     loadJobs();
     updateBookmarkUI();
-    loadLogs();
-    setInterval(loadLogs, 3000);
+    // ponytail: defer live log stream so initial mobile render finishes before recurring polling begins.
+    setTimeout(() => { loadLogs(); setInterval(loadLogs, 4000); }, 1500);
   </script>
 </body>
 </html>""")
