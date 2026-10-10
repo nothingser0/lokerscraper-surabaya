@@ -98,22 +98,7 @@ def dashboard():
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
-          colors: {
-            cream: '#F4F4F0',
-            ink: '#111111',
-            limepill: '#D4F542',
-            softgray: '#E6E6E1',
-          }
-        }
-      }
-    }
-  </script>
+  <link rel="stylesheet" href="/static/app.css">
   <style>
     body { background-color: #ECECE8; color: #111111; }
     .display-title { letter-spacing: -0.04em; line-height: 0.92; font-weight: 800; }
