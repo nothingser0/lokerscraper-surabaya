@@ -317,11 +317,11 @@ def dashboard():
           <div class="p-4 bg-white/70 rounded-2xl border border-black/5 space-y-3">
           <div class="space-y-1.5 min-w-0">
             <div class="font-bold tracking-widest text-[10px] text-neutral-600 uppercase">LOCATIONS</div>
-            <div id="envLocations" class="flex flex-wrap gap-1.5 min-w-0">Loading...</div>
+            <div id="envLocations" class="flex flex-wrap gap-1.5 min-w-0 min-h-[28px]">Loading...</div>
           </div>
           <div class="space-y-1.5 min-w-0">
             <div class="font-bold tracking-widest text-[10px] text-neutral-600 uppercase">KEYWORDS</div>
-            <div id="envKeywords" class="flex flex-wrap gap-1.5 min-w-0">Loading...</div>
+            <div id="envKeywords" class="flex flex-wrap gap-1.5 min-w-0 min-h-[32px]">Loading...</div>
           </div>
           </div>
         </div>
@@ -438,7 +438,7 @@ def dashboard():
         </div>
       </div>
 
-      <div id="jobsList" class="space-y-2.5">
+      <div id="jobsList" class="space-y-2.5 min-h-[600px]">
         <div class="text-neutral-500 text-sm py-8 text-center">Loading live positions...</div>
       </div>
 

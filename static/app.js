@@ -493,9 +493,8 @@
     function renderLogs() {
       if (!logLines.length) return;
       logEl.innerHTML = logLines.map(logRowHtml).join('');
-      let guard = logLines.length;
-      while (logEl.scrollHeight > logEl.clientHeight && logEl.firstChild && guard--) {
-        logEl.removeChild(logEl.firstChild);
+      if (logLines.length > 25) {
+        logLines = logLines.slice(-25);
       }
     }
     async function loadLogs() {
