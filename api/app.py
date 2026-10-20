@@ -447,9 +447,10 @@ def dashboard():
         <div class="flex items-center gap-2">
           <div class="flex items-center gap-1 bg-neutral-900 border border-neutral-800 rounded-full pl-3 pr-1 py-1 mr-1">
             <label for="pageJump" class="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Go</label>
-            <input id="pageJump" type="number" min="1" inputmode="numeric" placeholder="#"
+            <input id="pageJump" type="text" inputmode="numeric" autocomplete="off" placeholder="#"
+                   oninput="this.value=this.value.replace(/[^0-9]/g,'')"
                    onkeydown="if(event.key==='Enter'){jumpToPage(this.value)}"
-                   class="w-10 bg-transparent text-white text-xs font-semibold text-center focus:outline-none [appearance:textfield] [&amp;::-webkit-outer-spin-button]:appearance-none [&amp;::-webkit-inner-spin-button]:appearance-none">
+                   class="w-10 bg-transparent text-white text-xs font-semibold text-center focus:outline-none">
             <button onclick="jumpToPage(document.getElementById('pageJump').value)" aria-label="Go to page" class="w-6 h-6 rounded-full bg-limepill text-black hover:brightness-95 transition flex items-center justify-center p-0">
               <svg class="w-3.5 h-3.5 block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -464,32 +465,32 @@ def dashboard():
           <button id="nextBtn" onclick="changePage(1)" class="w-9 h-9 rounded-full bg-limepill hover:brightness-95 disabled:opacity-30 disabled:bg-neutral-800 flex items-center justify-center text-black font-bold transition">
             ›
           </button>
+        </div>
       </div>
+
     </div>
 
+      <footer class="pb-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-neutral-500">
+        <div class="flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-limepill radar-dot shrink-0"></span>
+            <span class="font-bold text-neutral-800">LokerScraper Surabaya</span>
+          </div>
+          <span class="hidden sm:inline text-neutral-300">•</span>
+          <span class="text-neutral-400 text-[11px] sm:text-xs">Automated Regional Tech Aggregator</span>
+        </div>
+        <div class="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 text-neutral-400 text-[11px]">
+          <span>SQLite WAL • Auto-Prune 30d</span>
+          <div class="flex items-center gap-2 text-neutral-400">
+            <span class="hidden sm:inline">•</span>
+            <a href="/health" target="_blank" class="hover:text-neutral-700 transition">/health</a>
+            <span>•</span>
+            <a href="/api/stats" target="_blank" class="hover:text-neutral-700 transition">/api/stats</a>
+          </div>
+        </div>
+      </footer>
+
     </main>
-
-    <footer class="pt-8 pb-14 border-t border-black/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-neutral-500">
-      <div class="flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-limepill radar-dot shrink-0"></span>
-          <span class="font-bold text-neutral-800">LokerScraper Surabaya</span>
-        </div>
-        <span class="hidden sm:inline text-neutral-300">•</span>
-        <span class="text-neutral-400 text-[11px] sm:text-xs">Automated Regional Tech Aggregator</span>
-      </div>
-      <div class="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 text-neutral-400 text-[11px]">
-        <span>SQLite WAL • Auto-Prune 30d</span>
-        <div class="flex items-center gap-2 text-neutral-400">
-          <span class="hidden sm:inline">•</span>
-          <a href="/health" target="_blank" class="hover:text-neutral-700 transition">/health</a>
-          <span>•</span>
-          <a href="/api/stats" target="_blank" class="hover:text-neutral-700 transition">/api/stats</a>
-        </div>
-      </div>
-    </footer>
-
-  </div>
 
   <script src="/static/app.js" defer></script>
 </body>

@@ -214,6 +214,7 @@ class StorageService:
         self.cleanup_old_logs(days=days)
         cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         cutoff_date = cutoff_iso[:10]
+        deleted = 0
         try:
             with sqlite3.connect(self.sqlite_file) as conn:
                 cursor = conn.execute("""
@@ -221,42 +222,13 @@ class StorageService:
                     WHERE (created_at IS NOT NULL AND created_at != '' AND created_at < ?)
                        OR (created_at IS NULL AND posted_at IS NOT NULL AND posted_at != '' AND posted_at < ?)
                 """, (cutoff_iso, cutoff_date))
+                deleted = cursor.rowcount
                 if cursor.rowcount > 0:
                     logger.info(f"Cleaned up {cursor.rowcount} old jobs from SQLite.")
-                    conn.execute("VACUUM")
         except Exception as e:
             logger.error(f"Error deleting old jobs from SQLite: {e}")
 
-        jobs = self.load_jobs()
-        if not jobs:
-            return
-
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        valid_jobs = []
-
-        for job in jobs:
-            date_str = job.get("scraped_at") or job.get("posted_at")
-            if not date_str:
-                valid_jobs.append(job)
-                continue
-            
-            try:
-                if "T" in date_str:
-                    job_dt = datetime.fromisoformat(date_str)
-                else:
-                    job_dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-                
-                if job_dt.tzinfo is None:
-                    job_dt = job_dt.replace(tzinfo=timezone.utc)
-
-                if job_dt >= cutoff:
-                    valid_jobs.append(job)
-            except Exception:
-                valid_jobs.append(job)
-
-        if len(valid_jobs) < len(jobs):
-            logger.info(f"Cleaned up {len(jobs) - len(valid_jobs)} old jobs.")
-            self.save_jobs(valid_jobs)
+        if deleted > 0:
             self.vacuum_database()
 
     def vacuum_database(self) -> None:
