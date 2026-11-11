@@ -13,7 +13,8 @@ The engine harvests job opportunities across 8 major recruitment platforms, perf
 ## ✨ Key Features
 
 - **8-Platform Parallel Scraping**: Concurrent data ingestion from Glints, JobStreet, Kalibrr, Karir.com, LinkedIn, RemoteOK, SejutaCita, and Tech in Asia — entirely headless, zero heavy browser dependencies (no Puppeteer/Playwright overhead).
-- **Ultra-Low Memory Footprint**: Idles under `<50 MB` RAM, peaks under `<120 MB` during active parallel cycles.
+- **Ultra-Low Memory Footprint (Golang Engine)**: Idles under `~10-12 MB` RAM, peaks under `<25 MB` during active parallel cycles.
+- **Single Self-Contained Binary**: Fast startup, zero runtime interpreter overhead.
 - **Deterministic Deduplication & Storage**: Pure SQLite database (`data/jobs.db`) with WAL mode (`PRAGMA journal_mode=WAL`), indexed queries, automatic VACUUM pruning, and configurable 30-day retention.
 - **Smart N+1 Skipping**: Known jobs recorded in `seen_ids` table bypass detail HTTP roundtrips entirely on repeat runs.
 - **Real-Time Notification Dispatch**: Rich embeds delivered to multi-channel Discord Webhooks and Telegram bots with automated error alerting.
@@ -67,7 +68,19 @@ The engine harvests job opportunities across 8 major recruitment platforms, perf
 
 ---
 
-### Option 2: Native Python Setup
+### Option 2: Native Go Execution (Recommended Bare-Metal)
+
+1. **Build and run**:
+   ```bash
+   go build -ldflags="-s -w" -o lokerscraper ./cmd/server
+   ./lokerscraper
+   ```
+   Or simply:
+   ```bash
+   go run ./cmd/server
+   ```
+
+### Option 3: Python Setup (Legacy)
 
 1. **Create and activate a virtual environment**:
    ```bash

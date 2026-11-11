@@ -3,13 +3,8 @@
 README.md
 docs-ai/
 planning/
-
-.venv/
-venv/
-env/
-__pycache__/
-*.pyc
-*.pyo
+lokerscraper
+lokerscraper.exe
 
 data/
 logs/

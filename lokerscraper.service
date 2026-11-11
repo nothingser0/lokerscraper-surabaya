@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h/lokerscraper-surabaya
-ExecStart=/usr/bin/env python3 api/app.py
+ExecStart=%h/lokerscraper-surabaya/lokerscraper
 Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=%h/lokerscraper-surabaya/.env
 Restart=always

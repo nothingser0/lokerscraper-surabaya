@@ -1,19 +1,22 @@
-FROM python:3.12-slim AS builder
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-FROM python:3.12-slim
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PATH=/root/.local/bin:$PATH
+COPY go.mod go.sum ./
+RUN go mod download
 
-COPY --from=builder /root/.local /root/.local
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -ldflags="-s -w" -o lokerscraper ./cmd/server
+
+FROM alpine:3.20
+
+WORKDIR /app
+
+RUN apk --no-cache add ca-certificates tzdata
+
+COPY --from=builder /app/lokerscraper .
+COPY static ./static
 
 EXPOSE 5000
-CMD ["python", "api/app.py"]
+
+CMD ["./lokerscraper"]
