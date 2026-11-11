@@ -4,17 +4,17 @@
   <img src="docs/assets/dashboard-preview.png" alt="LokerScraper Surabaya Dashboard Preview" width="80%">
 </p>
 
-LokerScraper Surabaya is a high-efficiency automated job vacancy aggregator engineered for 24/7 continuous operation on low-power devices (Armbian TV boxes, Raspberry Pi, home servers) and Docker containers.
+LokerScraper Surabaya is an ultra-lightweight, automated job vacancy aggregator engineered in **Golang** for 24/7 continuous operation on low-resource devices (Armbian TV boxes, Raspberry Pi, 512MB VPS) and Docker containers.
 
-The engine harvests job opportunities across 8 major recruitment platforms, performs deterministic deduplication and regional/keyword filtering, dispatches real-time alerts to Discord & Telegram, and serves a modern Swiss-editorial web dashboard alongside a JSON REST API.
+The engine harvests job opportunities across 8 major recruitment platforms concurrently using lightweight goroutines, performs deterministic deduplication and regional/keyword filtering, dispatches real-time alerts to Discord & Telegram, and serves a modern Swiss-editorial web dashboard alongside a JSON REST API.
 
 ---
 
 ## ✨ Key Features
 
 - **8-Platform Parallel Scraping**: Concurrent data ingestion from Glints, JobStreet, Kalibrr, Karir.com, LinkedIn, RemoteOK, SejutaCita, and Tech in Asia — entirely headless, zero heavy browser dependencies (no Puppeteer/Playwright overhead).
-- **Ultra-Low Memory Footprint (Golang Engine)**: Idles under `~10-12 MB` RAM, peaks under `<25 MB` during active parallel cycles.
-- **Single Self-Contained Binary**: Fast startup, zero runtime interpreter overhead.
+- **Ultra-Low Memory Footprint (Golang)**: Idles at **`~10-12 MB`** RAM, peaks under **`<25 MB`** during active parallel scraping cycles.
+- **Single Self-Contained Binary**: Zero runtime interpreter overhead, instant sub-second startup, compiled static executable (~12.5MB).
 - **Deterministic Deduplication & Storage**: Pure SQLite database (`data/jobs.db`) with WAL mode (`PRAGMA journal_mode=WAL`), indexed queries, automatic VACUUM pruning, and configurable 30-day retention.
 - **Smart N+1 Skipping**: Known jobs recorded in `seen_ids` table bypass detail HTTP roundtrips entirely on repeat runs.
 - **Real-Time Notification Dispatch**: Rich embeds delivered to multi-channel Discord Webhooks and Telegram bots with automated error alerting.
@@ -26,14 +26,14 @@ The engine harvests job opportunities across 8 major recruitment platforms, perf
   - Native vertical typographic motivation marquees with edge fade masks.
   - CSV export endpoint (`/api/export`).
 - **Secure Remote Access**: Ready for Cloudflare Tunnels (included in Docker compose profile) and private mesh networks (Tailscale/WireGuard). Manual triggers secured via `TRIGGER_TOKEN`.
-- **Fault-Tolerant Scheduling**: Background scheduler (APScheduler) with randomized intervals, individual scraper timeouts, and graceful shutdown signal handlers.
+- **Fault-Tolerant Scheduling**: Built-in background goroutine scheduler with randomized intervals, individual scraper timeouts, and graceful shutdown signal handlers.
 
 ---
 
 ## 🛠️ System Requirements
 
-- Python 3.10+ (for bare-metal execution) **or**
-- Docker & Docker Compose (recommended for 24/7 server / SBC deployment)
+- **Go 1.22+** (for bare-metal execution) **or**
+- **Docker & Docker Compose** (recommended for 24/7 server / SBC deployment)
 
 ---
 
@@ -68,38 +68,24 @@ The engine harvests job opportunities across 8 major recruitment platforms, perf
 
 ---
 
-### Option 2: Native Go Execution (Recommended Bare-Metal)
+### Option 2: Native Go Execution (Bare-Metal)
 
-1. **Build and run**:
+1. **Build the optimized binary**:
    ```bash
    go build -ldflags="-s -w" -o lokerscraper ./cmd/server
-   ./lokerscraper
    ```
-   Or simply:
+
+2. **Run the application**:
+   ```bash
+   ./lokerscraper        # Linux / macOS
+   .\lokerscraper.exe    # Windows
+   ```
+
+   *Or run directly in development mode:*
    ```bash
    go run ./cmd/server
    ```
-
-### Option 3: Python Setup (Legacy)
-
-1. **Create and activate a virtual environment**:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate       # Linux / macOS
-   # venv\Scripts\activate        # Windows
-   pip install -r requirements.txt
-   ```
-
-2. **Prepare configuration**:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Launch the server**:
-   ```bash
-   python api/app.py
-   ```
-   Waitress serves the application at `http://0.0.0.0:5000`.
+   Access the dashboard at `http://127.0.0.1:5000`.
 
 ---
 
@@ -157,10 +143,10 @@ sudo systemctl enable --now cloudflared.service
 
 ## 🧪 System Verification (Smoke Tests)
 
-Validate SQLite storage operations, scraper auto-discovery registry, and live HTTP endpoints:
+Validate SQLite storage operations, scraper registry discovery, and live HTTP API endpoints:
 
 ```bash
-python tests/smoke_test.py
+go test -v ./tests
 ```
 
 ---

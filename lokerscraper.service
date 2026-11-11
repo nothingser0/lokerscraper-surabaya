@@ -7,7 +7,6 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=%h/lokerscraper-surabaya
 ExecStart=%h/lokerscraper-surabaya/lokerscraper
-Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=%h/lokerscraper-surabaya/.env
 Restart=always
 RestartSec=10
