@@ -380,10 +380,38 @@ func (s *StorageService) LogDailyJobs(jobs []model.Job) {
 	}
 
 	todayStr := time.Now().Format("2006-01-02")
+	jsonPath := filepath.Join(s.logsDir, fmt.Sprintf("jobs-%s.json", todayStr))
 	txtPath := filepath.Join(s.logsDir, fmt.Sprintf("jobs-%s.txt", todayStr))
 
-	var lines []string
+	var existingDaily []model.Job
+	if data, err := os.ReadFile(jsonPath); err == nil {
+		_ = json.Unmarshal(data, &existingDaily)
+	}
+
+	existingMap := make(map[string]bool)
+	for _, j := range existingDaily {
+		if j.ID != "" {
+			existingMap[j.ID] = true
+		}
+	}
+
+	var uniqueAdditions []model.Job
 	for _, j := range jobs {
+		if j.ID != "" && !existingMap[j.ID] {
+			existingMap[j.ID] = true
+			uniqueAdditions = append(uniqueAdditions, j)
+		}
+	}
+
+	if len(uniqueAdditions) > 0 {
+		combined := append(existingDaily, uniqueAdditions...)
+		if data, err := json.MarshalIndent(combined, "", "  "); err == nil {
+			_ = os.WriteFile(jsonPath, data, 0644)
+		}
+	}
+
+	var lines []string
+	for _, j := range uniqueAdditions {
 		title := j.Title
 		company := j.Company
 		source := j.Source
