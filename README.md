@@ -32,7 +32,7 @@ The engine harvests job opportunities across 8 major recruitment platforms concu
 
 ## 🛠️ System Requirements
 
-- **Go 1.22+** (for bare-metal execution) **or**
+- **Go 1.27+** (for bare-metal execution) **or**
 - **Docker & Docker Compose** (recommended for 24/7 server / SBC deployment)
 
 ---

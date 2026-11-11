@@ -1,6 +1,6 @@
 module lokerscraper-surabaya
 
-go 1.26.0
+go 1.27
 
 require (
 	github.com/PuerkitoBio/goquery v1.13.0
