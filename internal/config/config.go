@@ -43,11 +43,26 @@ const (
 	defaultLocations = "surabaya,sidoarjo,gresik,remote"
 )
 
-func LoadConfig() *Config {
-	baseDir, err := os.Getwd()
+func findProjectRoot() string {
+	dir, err := os.Getwd()
 	if err != nil {
-		baseDir = "."
+		return "."
 	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "."
+}
+
+func LoadConfig() *Config {
+	baseDir := findProjectRoot()
 
 	_ = godotenv.Overload(filepath.Join(baseDir, ".env"))
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"lokerscraper-surabaya/internal/api"
@@ -14,7 +15,14 @@ import (
 )
 
 func TestStorageAndAPI(t *testing.T) {
+	tempDir := t.TempDir()
+
 	cfg := config.LoadConfig()
+	cfg.DataDir = tempDir
+	cfg.LogsDir = tempDir
+	cfg.LogFile = filepath.Join(tempDir, "scraper.log")
+	cfg.StaticDir = filepath.Join("..", "static")
+
 	engine.InitFilter(cfg)
 
 	store, err := storage.NewStorageService(cfg)
