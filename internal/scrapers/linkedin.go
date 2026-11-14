@@ -23,7 +23,7 @@ type LinkedInScraper struct {
 
 func NewLinkedInScraper(cfg *config.Config) *LinkedInScraper {
 	return &LinkedInScraper{
-		BaseClient: NewBaseClient(15*time.Second, 4*time.Second),
+		BaseClient: NewBaseClient(15*time.Second, 1500*time.Millisecond),
 		cfg:        cfg,
 	}
 }
@@ -34,6 +34,19 @@ func (s *LinkedInScraper) SourceName() string {
 
 func (s *LinkedInScraper) SetSeenIDs(seen map[string]bool) {
 	s.SeenIDs = seen
+}
+
+func (s *LinkedInScraper) matchesKeywords(title string) bool {
+	if len(s.cfg.Keywords) == 0 {
+		return true
+	}
+	titleLower := strings.ToLower(title)
+	for _, kw := range s.cfg.Keywords {
+		if strings.Contains(titleLower, strings.ToLower(kw)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *LinkedInScraper) fetchJobDetail(rawID string) (string, *string, *string) {
@@ -162,25 +175,25 @@ func (s *LinkedInScraper) FetchJobs() ([]model.Job, error) {
 				return
 			}
 
-			title := strings.TrimSpace(card.Find("h3[class*='base-search-card__title'], h3[class*='job-search-card__title']").Text())
+			title := strings.TrimSpace(card.Find("h3[class*='base-search-card__title'], h3[class*='job-search-card__title']").First().Text())
 			if title == "" {
 				title = "Untitled"
 			}
 
-			company := strings.TrimSpace(card.Find("h4[class*='base-search-card__subtitle'], h4[class*='job-search-card__subtitle'], a[class*='hidden-nested-link']").Text())
+			company := strings.TrimSpace(card.Find("h4[class*='base-search-card__subtitle'], h4[class*='job-search-card__subtitle'], a[class*='hidden-nested-link']").First().Text())
 			if company == "" {
 				company = "Unknown"
 			}
 
 			var logoURL *string
-			img := card.Find("img")
+			img := card.Find("img").First()
 			if delayed, exists := img.Attr("data-delayed-url"); exists && delayed != "" {
 				logoURL = &delayed
 			} else if src, exists := img.Attr("src"); exists && src != "" {
 				logoURL = &src
 			}
 
-			locStr := strings.TrimSpace(card.Find("span[class*='job-search-card__location']").Text())
+			locStr := strings.TrimSpace(card.Find("span[class*='job-search-card__location']").First().Text())
 			if locStr == "" {
 				locStr = defaultLoc
 			}
@@ -209,7 +222,7 @@ func (s *LinkedInScraper) FetchJobs() ([]model.Job, error) {
 			var experience *string
 			var companyIndustry *string
 
-			if !s.IsSeen(s.SourceName(), rawID) {
+			if s.matchesKeywords(title) && !s.IsSeen(s.SourceName(), rawID) {
 				dDesc, dExp, dInd := s.fetchJobDetail(rawID)
 				if dDesc != "" {
 					jobDesc = &dDesc
