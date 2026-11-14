@@ -120,7 +120,7 @@ docker compose --profile tunnel up -d
 
 ### Via Native Systemd Service:
 ```bash
-sudo cp cloudflared.service /etc/systemd/system/
+sudo cp deploy/systemd/cloudflared.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now cloudflared.service
 ```

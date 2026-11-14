@@ -1,8 +1,12 @@
 .git/
+.github/
 .gitignore
+.gitattributes
 README.md
+docs/
 docs-ai/
 planning/
+deploy/
 lokerscraper
 lokerscraper.exe
 

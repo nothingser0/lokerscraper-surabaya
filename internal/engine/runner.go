@@ -181,6 +181,7 @@ func (r *Runner) RunCycle(force bool) (CycleResult, error) {
 
 	_ = r.storage.CleanupOldJobs(r.cfg.JobRetentionDays)
 	_ = r.storage.TrimSeenIDs(10000, 5000)
+	r.storage.TrimLogFile(r.cfg.LogFile, 2*1024*1024, 512*1024)
 
 	log.Printf("[Runner] Scrape cycle completed: %d raw -> %d filtered -> %d new jobs saved.",
 		scrapedTotal, filteredTotal, newJobsCount)

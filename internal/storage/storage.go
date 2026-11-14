@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -348,7 +349,66 @@ func (s *StorageService) CleanupOldJobs(days int) error {
 		_, _ = s.db.Exec("VACUUM")
 	}
 
+	s.cleanupOldDailyLogs(cutoffDate)
+
 	return nil
+}
+
+func (s *StorageService) cleanupOldDailyLogs(cutoffDate string) {
+	entries, err := os.ReadDir(s.logsDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, "jobs-") {
+			continue
+		}
+		var datePart string
+		if strings.HasSuffix(name, ".json") {
+			datePart = strings.TrimSuffix(strings.TrimPrefix(name, "jobs-"), ".json")
+		} else if strings.HasSuffix(name, ".txt") {
+			datePart = strings.TrimSuffix(strings.TrimPrefix(name, "jobs-"), ".txt")
+		}
+		if len(datePart) == 10 && datePart < cutoffDate {
+			_ = os.Remove(filepath.Join(s.logsDir, name))
+		}
+	}
+}
+
+func (s *StorageService) TrimLogFile(logPath string, maxBytes, keepBytes int64) {
+	fi, err := os.Stat(logPath)
+	if err != nil || fi.Size() <= maxBytes {
+		return
+	}
+
+	f, err := os.Open(logPath)
+	if err != nil {
+		return
+	}
+	if _, err := f.Seek(-keepBytes, io.SeekEnd); err != nil {
+		f.Close()
+		return
+	}
+	buf := make([]byte, keepBytes)
+	n, err := f.Read(buf)
+	f.Close()
+	if err != nil || n <= 0 {
+		return
+	}
+
+	trimmed := buf[:n]
+	if idx := strings.IndexByte(string(trimmed), '\n'); idx >= 0 && idx+1 < len(trimmed) {
+		trimmed = trimmed[idx+1:]
+	}
+
+	if wf, err := os.OpenFile(logPath, os.O_WRONLY|os.O_TRUNC, 0644); err == nil {
+		_, _ = wf.Write(trimmed)
+		wf.Close()
+	}
 }
 
 func (s *StorageService) TrimSeenIDs(maxLimit, targetLimit int) error {

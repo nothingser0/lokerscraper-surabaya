@@ -23,7 +23,7 @@ type LinkedInScraper struct {
 
 func NewLinkedInScraper(cfg *config.Config) *LinkedInScraper {
 	return &LinkedInScraper{
-		BaseClient: NewBaseClient(12*time.Second, 30*time.Second),
+		BaseClient: NewBaseClient(15*time.Second, 4*time.Second),
 		cfg:        cfg,
 	}
 }
@@ -113,10 +113,16 @@ func (s *LinkedInScraper) FetchJobs() ([]model.Job, error) {
 		}
 
 		if resp.StatusCode == 429 {
-			log.Printf("[LinkedIn] Rate limited (429) for keyword %s; backing off 120s...", kw)
+			log.Printf("[LinkedIn] Rate limited (429) for keyword %s; backing off 60s...", kw)
 			resp.Body.Close()
-			time.Sleep(120 * time.Second)
-			resp, err = s.DoRequest(req)
+			time.Sleep(60 * time.Second)
+			retryReq, retryErr := http.NewRequest("GET", searchURL, nil)
+			if retryErr != nil {
+				break
+			}
+			retryReq.Header.Set("User-Agent", DefaultUserAgent)
+			retryReq.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+			resp, err = s.DoRequest(retryReq)
 			if err != nil || resp.StatusCode == 429 {
 				if resp != nil {
 					resp.Body.Close()

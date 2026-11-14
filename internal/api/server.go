@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -201,8 +202,19 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	const maxTailBytes int64 = 64 * 1024
+	skipFirstPartialLine := false
+	if fi, err := file.Stat(); err == nil && fi.Size() > maxTailBytes {
+		if _, err := file.Seek(-maxTailBytes, io.SeekEnd); err == nil {
+			skipFirstPartialLine = true
+		}
+	}
+
 	var lines []string
 	scanner := bufio.NewScanner(file)
+	if skipFirstPartialLine {
+		_ = scanner.Scan()
+	}
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
