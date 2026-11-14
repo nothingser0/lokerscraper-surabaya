@@ -185,8 +185,7 @@
 
     async function loadJobs() {
       try {
-        // ponytail: initial fetch 100 jobs to avoid long JSON parsing and chain latency on mobile. Add dynamic pagination query when dataset exceeds 500.
-        const res = await fetch('/api/jobs?limit=100');
+        const res = await fetch('/api/jobs?limit=500');
         const data = await res.json();
         allJobs = data.jobs || [];
         currentPage = 1;
@@ -402,7 +401,7 @@
           return;
         }
         closeTokenModal();
-        showToast('Scraping initiated across all 6 platforms.');
+        showToast('Scraping initiated across all 8 platforms.');
         setTimeout(() => {
           loadStats();
           loadJobs();
@@ -479,10 +478,12 @@
 
     const logEl = document.getElementById('logTerminal');
     const logLevelClass = (line) => {
-      if (line.includes('ERROR') || line.includes('Traceback')) return 'text-[#FF6B6B]';
-      if (line.includes('WARNING')) return 'text-[#FFBD2E]';
-      if (line.includes('INFO')) return 'text-neutral-400';
-      return 'text-neutral-500';
+      const lower = line.toLowerCase();
+      if (lower.includes('error') || lower.includes('failed') || lower.includes('traceback')) return 'text-[#FF6B6B]';
+      if (lower.includes('warning') || lower.includes('rate limited') || lower.includes('429')) return 'text-[#FFBD2E]';
+      if (lower.includes('finished') || lower.includes('completed') || lower.includes('listening on')) return 'text-[#D4F542]';
+      if (lower.includes('starting') || lower.includes('triggering') || lower.includes('info')) return 'text-neutral-300';
+      return 'text-neutral-400';
     };
     let logLines = [];
     let logSig = '';
@@ -498,6 +499,7 @@
       }
     }
     async function loadLogs() {
+      if (document.hidden) return;
       try {
         const res = await fetch('/api/logs?lines=80');
         const data = await res.json();

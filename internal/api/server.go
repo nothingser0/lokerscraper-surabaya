@@ -234,6 +234,8 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
 	keyword := strings.TrimSpace(r.URL.Query().Get("keyword"))
 	source := strings.TrimSpace(r.URL.Query().Get("source"))
+	fullParam := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("full")))
+	includeFull := fullParam == "1" || fullParam == "true"
 
 	var days *int
 	if dStr := r.URL.Query().Get("days"); dStr != "" {
@@ -264,6 +266,12 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
 
 	if jobs == nil {
 		jobs = []model.Job{}
+	} else if !includeFull {
+		for i := range jobs {
+			jobs[i].JobDescription = nil
+			jobs[i].CompanyDescription = nil
+			jobs[i].Qualifications = nil
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
