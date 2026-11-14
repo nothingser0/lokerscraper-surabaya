@@ -16,6 +16,11 @@ import (
 	"lokerscraper-surabaya/internal/utils"
 )
 
+var (
+	linkedInURNRe  = regexp.MustCompile(`jobPosting:(\d+)`)
+	linkedInViewRe = regexp.MustCompile(`view/(\d+)`)
+)
+
 type LinkedInScraper struct {
 	*BaseClient
 	cfg *config.Config
@@ -105,9 +110,6 @@ func (s *LinkedInScraper) FetchJobs() ([]model.Job, error) {
 		defaultLoc = s.cfg.Locations[0]
 	}
 
-	reURN := regexp.MustCompile(`jobPosting:(\d+)`)
-	reView := regexp.MustCompile(`view/(\d+)`)
-
 	for _, kw := range s.cfg.Keywords {
 		searchURL := fmt.Sprintf("https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=%s&location=%s&start=0",
 			url.QueryEscape(kw), url.QueryEscape(defaultLoc))
@@ -159,13 +161,13 @@ func (s *LinkedInScraper) FetchJobs() ([]model.Job, error) {
 		doc.Find("li").Each(func(i int, card *goquery.Selection) {
 			rawID := ""
 			if urn, exists := card.Find("div[data-entity-urn]").Attr("data-entity-urn"); exists {
-				if m := reURN.FindStringSubmatch(urn); len(m) > 1 {
+				if m := linkedInURNRe.FindStringSubmatch(urn); len(m) > 1 {
 					rawID = m[1]
 				}
 			}
 			if rawID == "" {
 				if link, exists := card.Find("a[class*='base-card__full-link'], a[class*='job-search-card__link']").Attr("href"); exists {
-					if m := reView.FindStringSubmatch(link); len(m) > 1 {
+					if m := linkedInViewRe.FindStringSubmatch(link); len(m) > 1 {
 						rawID = m[1]
 					}
 				}

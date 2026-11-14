@@ -17,6 +17,8 @@ import (
 	"lokerscraper-surabaya/internal/utils"
 )
 
+var jobStreetValidThroughRe = regexp.MustCompile(`"validThrough"\s*:\s*"([^"]+)"`)
+
 type JobStreetScraper struct {
 	*BaseClient
 	cfg *config.Config
@@ -73,10 +75,9 @@ func (s *JobStreetScraper) fetchJobDetail(rawID string) (string, *string) {
 	}
 
 	var deadline *string
-	reValid := regexp.MustCompile(`"validThrough"\s*:\s*"([^"]+)"`)
 	doc.Find("script[type='application/ld+json']").Each(func(i int, s *goquery.Selection) {
 		text := s.Text()
-		if m := reValid.FindStringSubmatch(text); len(m) > 1 {
+		if m := jobStreetValidThroughRe.FindStringSubmatch(text); len(m) > 1 {
 			val := m[1]
 			if len(val) >= 10 {
 				val = val[:10]

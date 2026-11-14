@@ -15,10 +15,21 @@ import (
 )
 
 var (
-	tagRe  = regexp.MustCompile(`<[^>]+>`)
-	ctrlRe = regexp.MustCompile(`[\x00-\x1f\x7f-\x9f]`)
-	wsRe   = regexp.MustCompile(`\s+`)
-	dateRe = regexp.MustCompile(`(?:(\d{4})[-/](\d{1,2})[-/](\d{1,2}))|(?:(\d{1,2})[-/](\d{1,2})[-/](\d{4}))`)
+	tagRe          = regexp.MustCompile(`<[^>]+>`)
+	ctrlRe         = regexp.MustCompile(`[\x00-\x1f\x7f-\x9f]`)
+	descCtrlRe     = regexp.MustCompile(`[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]`)
+	wsRe           = regexp.MustCompile(`\s+`)
+	salPrefixRe    = regexp.MustCompile(`(?i)^(?:idr|rp|usd|sgd|eur)\s*`)
+	salSuffixRe    = regexp.MustCompile(`(?i)\s*(?:per|/)?\s*(month|bulan|year|tahun|day|hari)\b.*$`)
+	salMilRe       = regexp.MustCompile(`(?i)^(\d+(?:\.\d+)?)\s*(m|jt|juta|million|mil)$`)
+	salKRe         = regexp.MustCompile(`(?i)^(\d+(?:\.\d+)?)\s*(k|rb|ribu|thousand)$`)
+	salSplitRe     = regexp.MustCompile(`\s*[-–—~|]\s*`)
+	descLineRe     = regexp.MustCompile(`(?i)<br\s*/?>|</p>|</h\d>|</div>|</ul>|</ol>|<button[^>]*>|</button>`)
+	descLiRe       = regexp.MustCompile(`(?i)<li[^>]*>`)
+	descUlRe       = regexp.MustCompile(`(?i)<ul[^>]*>|<ol[^>]*>`)
+	salRangeRe     = regexp.MustCompile(`(?i)(\d+)\s*(?:–|-|to|s/d)\s*(\d+)`)
+	salNumRe       = regexp.MustCompile(`\b\d+\b`)
+	nonAlphaNumRe  = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
 var weekdaysID = []string{
@@ -330,23 +341,19 @@ func FormatSalary(value string) string {
 
 	parseAmount := func(tok string) string {
 		tok = strings.TrimSpace(tok)
-		rePrefix := regexp.MustCompile(`(?i)^(?:idr|rp|usd|sgd|eur)\s*`)
-		tok = rePrefix.ReplaceAllString(tok, "")
-		reSuffix := regexp.MustCompile(`(?i)\s*(?:per|/)?\s*(month|bulan|year|tahun|day|hari)\b.*$`)
-		tok = strings.TrimSpace(reSuffix.ReplaceAllString(tok, ""))
+		tok = salPrefixRe.ReplaceAllString(tok, "")
+		tok = strings.TrimSpace(salSuffixRe.ReplaceAllString(tok, ""))
 		if tok == "" {
 			return ""
 		}
 
-		reMil := regexp.MustCompile(`(?i)^(\d+(?:\.\d+)?)\s*(m|jt|juta|million|mil)$`)
-		if m := reMil.FindStringSubmatch(tok); len(m) > 1 {
+		if m := salMilRe.FindStringSubmatch(tok); len(m) > 1 {
 			if f, err := strconv.ParseFloat(m[1], 64); err == nil {
 				return compact(f * 1000000)
 			}
 		}
 
-		reK := regexp.MustCompile(`(?i)^(\d+(?:\.\d+)?)\s*(k|rb|ribu|thousand)$`)
-		if m := reK.FindStringSubmatch(tok); len(m) > 1 {
+		if m := salKRe.FindStringSubmatch(tok); len(m) > 1 {
 			if f, err := strconv.ParseFloat(m[1], 64); err == nil {
 				return compact(f * 1000)
 			}
@@ -359,8 +366,7 @@ func FormatSalary(value string) string {
 		return tok
 	}
 
-	reSplit := regexp.MustCompile(`\s*[-–—~|]\s*`)
-	tokens := reSplit.Split(text, -1)
+	tokens := salSplitRe.Split(text, -1)
 
 	var unique []string
 	seen := make(map[string]bool)
@@ -387,17 +393,12 @@ func CleanDescription(text string) string {
 		return ""
 	}
 	text = html.UnescapeString(text)
-	reLine := regexp.MustCompile(`(?i)<br\s*/?>|</p>|</h\d>|</div>|</ul>|</ol>|<button[^>]*>|</button>`)
-	text = reLine.ReplaceAllString(text, "\n")
-	reLi := regexp.MustCompile(`(?i)<li[^>]*>`)
-	text = reLi.ReplaceAllString(text, "\n• ")
-	reUl := regexp.MustCompile(`(?i)<ul[^>]*>|<ol[^>]*>`)
-	text = reUl.ReplaceAllString(text, "\n")
+	text = descLineRe.ReplaceAllString(text, "\n")
+	text = descLiRe.ReplaceAllString(text, "\n• ")
+	text = descUlRe.ReplaceAllString(text, "\n")
 	text = tagRe.ReplaceAllString(text, " ")
 	text = string(norm.NFKC.Bytes([]byte(text)))
-
-	reCtrl := regexp.MustCompile(`[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]`)
-	text = reCtrl.ReplaceAllString(text, "")
+	text = descCtrlRe.ReplaceAllString(text, "")
 
 	lines := strings.Split(text, "\n")
 	var out []string
@@ -487,8 +488,7 @@ func ParseSalaryLabel(label string) (*int, *int) {
 	clean = strings.ReplaceAll(clean, ".", "")
 	clean = strings.TrimSpace(clean)
 
-	reRange := regexp.MustCompile(`(?i)(\d+)\s*(?:–|-|to|s/d)\s*(\d+)`)
-	if m := reRange.FindStringSubmatch(clean); len(m) > 2 {
+	if m := salRangeRe.FindStringSubmatch(clean); len(m) > 2 {
 		minV, err1 := strconv.Atoi(m[1])
 		maxV, err2 := strconv.Atoi(m[2])
 		if err1 == nil && err2 == nil {
@@ -496,8 +496,7 @@ func ParseSalaryLabel(label string) (*int, *int) {
 		}
 	}
 
-	reNum := regexp.MustCompile(`\b\d+\b`)
-	nums := reNum.FindAllString(clean, -1)
+	nums := salNumRe.FindAllString(clean, -1)
 	if len(nums) >= 2 {
 		minV, err1 := strconv.Atoi(nums[0])
 		maxV, err2 := strconv.Atoi(nums[1])
@@ -527,5 +526,40 @@ func GenerateJobID(source, rawIdentifier string) string {
 		hashStr = hashStr[:12]
 	}
 	return fmt.Sprintf("%s_%s", src, hashStr)
+}
+
+func GenerateContentSignature(title, company, location string) string {
+	t := strings.TrimSpace(nonAlphaNumRe.ReplaceAllString(strings.ToLower(title), " "))
+	c := strings.TrimSpace(nonAlphaNumRe.ReplaceAllString(strings.ToLower(company), " "))
+	l := strings.TrimSpace(nonAlphaNumRe.ReplaceAllString(strings.ToLower(location), " "))
+	if t == "" || c == "" || c == "unknown" || c == "unknown company" {
+		return ""
+	}
+	combined := fmt.Sprintf("%s|%s|%s", t, c, l)
+	sum := md5.Sum([]byte(combined))
+	hashStr := hex.EncodeToString(sum[:])
+	if len(hashStr) > 12 {
+		hashStr = hashStr[:12]
+	}
+	return fmt.Sprintf("sig_%s", hashStr)
+}
+
+func FormatJobSalary(salary *string, salaryMin, salaryMax *int) string {
+	if salary != nil && strings.TrimSpace(*salary) != "" {
+		return FormatSalary(*salary)
+	}
+	if salaryMin != nil || salaryMax != nil {
+		sMin := ""
+		if salaryMin != nil {
+			sMin = fmt.Sprintf("%d", *salaryMin)
+		}
+		sMax := ""
+		if salaryMax != nil {
+			sMax = fmt.Sprintf("%d", *salaryMax)
+		}
+		raw := strings.Trim(fmt.Sprintf("%s - %s", sMin, sMax), " -")
+		return FormatSalary(raw)
+	}
+	return "Not disclosed"
 }
 

@@ -14,6 +14,7 @@ import (
 
 	"lokerscraper-surabaya/internal/config"
 	"lokerscraper-surabaya/internal/model"
+	"lokerscraper-surabaya/internal/utils"
 
 	_ "modernc.org/sqlite"
 )
@@ -218,11 +219,13 @@ func (s *StorageService) SaveJobs(jobs []model.Job) error {
 		}
 
 		var salaryVal *string
-		if j.Salary != nil {
+		if j.Salary != nil && strings.TrimSpace(*j.Salary) != "" {
 			salaryVal = j.Salary
 		} else if j.SalaryMin != nil || j.SalaryMax != nil {
-			s := fmt.Sprintf("%v - %v", j.SalaryMin, j.SalaryMax)
-			salaryVal = &s
+			formatted := utils.FormatJobSalary(j.Salary, j.SalaryMin, j.SalaryMax)
+			if formatted != "Not disclosed" {
+				salaryVal = &formatted
+			}
 		}
 
 		created := j.ScrapedAt
@@ -286,17 +289,32 @@ func (s *StorageService) LoadSeenIDs() map[string]bool {
 
 	ids := make(map[string]bool)
 	rows, err := s.db.Query("SELECT id FROM seen_ids")
-	if err != nil {
-		return ids
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err == nil {
-			ids[id] = true
+	if err == nil {
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err == nil && id != "" {
+				ids[id] = true
+			}
 		}
+		rows.Close()
 	}
+
+	jobRows, err := s.db.Query("SELECT id, title, company, location FROM jobs")
+	if err == nil {
+		for jobRows.Next() {
+			var id, title, company, location string
+			if err := jobRows.Scan(&id, &title, &company, &location); err == nil {
+				if id != "" {
+					ids[id] = true
+				}
+				if sig := utils.GenerateContentSignature(title, company, location); sig != "" {
+					ids[sig] = true
+				}
+			}
+		}
+		jobRows.Close()
+	}
+
 	return ids
 }
 
@@ -477,10 +495,7 @@ func (s *StorageService) LogDailyJobs(jobs []model.Job) {
 		source := j.Source
 		location := j.Location
 		url := j.URL
-		salary := "Not disclosed"
-		if j.Salary != nil {
-			salary = *j.Salary
-		}
+		salary := utils.FormatJobSalary(j.Salary, j.SalaryMin, j.SalaryMax)
 		lines = append(lines, fmt.Sprintf("[%s] %s | %s | %s | Gaji: %s\nURL: %s\n", source, title, company, location, salary, url))
 	}
 

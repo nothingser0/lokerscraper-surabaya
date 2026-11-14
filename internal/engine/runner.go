@@ -143,25 +143,7 @@ func (r *Runner) RunCycle(force bool) (CycleResult, error) {
 	filteredJobs := FilterJobs(rawJobs)
 	filteredTotal := len(filteredJobs)
 
-	for i := range filteredJobs {
-		j := &filteredJobs[i]
-		if j.Source == "" {
-			j.Source = "Unknown"
-		}
-		if j.ID == "" {
-			rawID := j.RawID
-			if rawID == "" {
-				rawID = j.URL
-			}
-			if rawID == "" {
-				rawID = j.Title
-			}
-			j.ID = GenerateJobID(j.Source, rawID)
-		}
-	}
-
-	existingSeenIDs := r.storage.LoadSeenIDs()
-	newJobs, newIDs := DeduplicateJobs(filteredJobs, existingSeenIDs)
+	newJobs, newIDs := DeduplicateJobs(filteredJobs, seenIDs)
 	newJobsCount := len(newJobs)
 
 	if newJobsCount > 0 {
@@ -169,9 +151,7 @@ func (r *Runner) RunCycle(force bool) (CycleResult, error) {
 		_ = r.storage.SaveSeenIDs(newIDs)
 		r.storage.LogDailyJobs(newJobs)
 		notifiers.NotifyNewJobs(r.cfg, newJobs)
-	}
-
-	if force && len(filteredJobs) > 0 {
+	} else if force && len(filteredJobs) > 0 {
 		notifiers.NotifyNewJobs(r.cfg, filteredJobs)
 	}
 

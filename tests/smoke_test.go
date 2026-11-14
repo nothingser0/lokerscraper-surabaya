@@ -34,11 +34,25 @@ func TestStorageAndAPI(t *testing.T) {
 	}
 	defer store.Close()
 
-	// 1. Storage tests
+	// 1. Storage & Deduplication tests
+	salMin := 6000000
+	salMax := 8000000
 	seedJobs := []model.Job{
 		{
-			ID:       "test_1",
-			Source:   "TestPlatform",
+			RawID:     "raw_1",
+			Source:    "Glints",
+			Title:     "Backend Go Developer",
+			Company:   "Tech Corp",
+			Location:  "Surabaya",
+			SalaryMin: &salMin,
+			SalaryMax: &salMax,
+			WorkMode:  "Hybrid",
+			PostedAt:  "2026-11-11",
+		},
+		{
+			// Repost / cross-platform duplicate with different RawID but identical Title + Company + Location
+			RawID:    "raw_999",
+			Source:   "LinkedIn",
 			Title:    "Backend Go Developer",
 			Company:  "Tech Corp",
 			Location: "Surabaya",
@@ -46,9 +60,17 @@ func TestStorageAndAPI(t *testing.T) {
 			PostedAt: "2026-11-11",
 		},
 	}
-	if err := store.SaveJobs(seedJobs); err != nil {
+
+	seen := store.LoadSeenIDs()
+	deduped, newIDs := engine.DeduplicateJobs(seedJobs, seen)
+	if len(deduped) != 1 {
+		t.Fatalf("Expected DeduplicateJobs to keep 1 unique job out of 2 identical jobs, got %d", len(deduped))
+	}
+
+	if err := store.SaveJobs(deduped); err != nil {
 		t.Fatalf("Failed to save test jobs: %v", err)
 	}
+	_ = store.SaveSeenIDs(newIDs)
 
 	total, jobs, err := store.QueryJobs("backend", "", nil, 5, 0)
 	if err != nil {

@@ -15,11 +15,10 @@ func DeduplicateJobs(jobs []model.Job, seenIDs map[string]bool) ([]model.Job, []
 
 	for i := range jobs {
 		job := &jobs[i]
-		source := job.Source
-		rawID := job.ID
-		if rawID == "" {
-			rawID = job.RawID
+		if job.Source == "" {
+			job.Source = "Unknown"
 		}
+		rawID := job.RawID
 		if rawID == "" {
 			rawID = job.URL
 		}
@@ -29,15 +28,23 @@ func DeduplicateJobs(jobs []model.Job, seenIDs map[string]bool) ([]model.Job, []
 
 		jobID := job.ID
 		if jobID == "" {
-			jobID = utils.GenerateJobID(source, rawID)
+			jobID = utils.GenerateJobID(job.Source, rawID)
 			job.ID = jobID
 		}
 
-		if !seenIDs[jobID] {
-			seenIDs[jobID] = true
-			newJobs = append(newJobs, *job)
-			newIDs = append(newIDs, jobID)
+		sigID := utils.GenerateContentSignature(job.Title, job.Company, job.Location)
+
+		if seenIDs[jobID] || (sigID != "" && seenIDs[sigID]) {
+			continue
 		}
+
+		seenIDs[jobID] = true
+		newIDs = append(newIDs, jobID)
+		if sigID != "" {
+			seenIDs[sigID] = true
+			newIDs = append(newIDs, sigID)
+		}
+		newJobs = append(newJobs, *job)
 	}
 
 	return newJobs, newIDs

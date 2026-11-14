@@ -16,11 +16,16 @@ var (
 
 func InitFilter(cfg *config.Config) {
 	if len(cfg.Keywords) > 0 {
-		var escaped []string
+		var parts []string
 		for _, kw := range cfg.Keywords {
-			escaped = append(escaped, regexp.QuoteMeta(kw))
+			q := regexp.QuoteMeta(kw)
+			if len(kw) <= 3 {
+				parts = append(parts, `\b`+q+`\b`)
+			} else {
+				parts = append(parts, q)
+			}
 		}
-		pattern := fmt.Sprintf(`(?i)\b(?:%s)\b`, strings.Join(escaped, "|"))
+		pattern := fmt.Sprintf(`(?i)(?:%s)`, strings.Join(parts, "|"))
 		keywordsRe = regexp.MustCompile(pattern)
 	}
 
