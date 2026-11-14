@@ -56,13 +56,16 @@ func (s *JobStreetScraper) fetchJobDetail(rawID string) (string, *string) {
 	if err != nil {
 		return "", nil
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("User-Agent", DefaultUserAgent)
 
 	resp, err := s.DoRequest(req)
-	if err != nil || resp.StatusCode != 200 {
+	if err != nil {
 		return "", nil
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return "", nil
+	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
@@ -111,7 +114,7 @@ func (s *JobStreetScraper) FetchJobs() ([]model.Job, error) {
 		if err != nil {
 			continue
 		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+		req.Header.Set("User-Agent", DefaultUserAgent)
 		req.Header.Set("Accept", "application/json")
 
 		resp, err := s.DoRequest(req)

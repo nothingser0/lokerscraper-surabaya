@@ -11,6 +11,8 @@ import (
 	"lokerscraper-surabaya/internal/utils"
 )
 
+const DefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
 type Scraper interface {
 	SourceName() string
 	FetchJobs() ([]model.Job, error)
@@ -28,8 +30,11 @@ type BaseClient struct {
 func NewBaseClient(timeout time.Duration, delay time.Duration) *BaseClient {
 	transport := &http.Transport{
 		MaxIdleConns:        10,
+		MaxIdleConnsPerHost: 5,
 		IdleConnTimeout:     30 * time.Second,
-		DisableCompression: false,
+		TLSHandshakeTimeout: 10 * time.Second,
+		DisableCompression:  false,
+		ForceAttemptHTTP2:   true,
 		TLSClientConfig:     &tls.Config{InsecureSkipVerify: false},
 	}
 	return &BaseClient{

@@ -4,13 +4,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"lokerscraper-surabaya/internal/api"
 	"lokerscraper-surabaya/internal/config"
 	"lokerscraper-surabaya/internal/engine"
 	"lokerscraper-surabaya/internal/model"
+	"lokerscraper-surabaya/internal/scrapers"
 	"lokerscraper-surabaya/internal/storage"
 )
 
@@ -110,4 +113,32 @@ func TestStorageAndAPI(t *testing.T) {
 	}
 
 	t.Logf("All Go smoke tests passed successfully!")
+}
+
+func TestGlintsLive(t *testing.T) {
+	if os.Getenv("LIVE_TEST") == "" {
+		t.Skip("Skipping live network test (set LIVE_TEST=1 to run)")
+	}
+	cfg := config.LoadConfig()
+	engine.InitFilter(cfg)
+
+	start := time.Now()
+	sc := scrapers.NewGlintsScraper(cfg)
+	jobs, err := sc.FetchJobs()
+	if err != nil {
+		t.Fatalf("Glints FetchJobs error: %v", err)
+	}
+	filtered := engine.FilterJobs(jobs)
+	t.Logf("Glints live test finished in %v: %d raw jobs -> %d filtered jobs (across %d keywords)",
+		time.Since(start), len(jobs), len(filtered), len(cfg.Keywords))
+	for i, j := range filtered {
+		if i < 10 {
+			descLen := 0
+			if j.JobDescription != nil {
+				descLen = len(*j.JobDescription)
+			}
+			t.Logf("Filtered job %d: [%s] %s | %s | %s | Mode=%s | DescLen=%d",
+				i+1, j.RawID, j.Title, j.Company, j.Location, j.WorkMode, descLen)
+		}
+	}
 }

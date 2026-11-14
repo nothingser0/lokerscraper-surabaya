@@ -195,7 +195,7 @@ func SendDiscordPayload(webhookURL string, payload DiscordPayload) bool {
 			backoff *= 2
 			continue
 		}
-		defer resp.Body.Close()
+		resp.Body.Close()
 
 		if resp.StatusCode == 200 || resp.StatusCode == 204 {
 			return true

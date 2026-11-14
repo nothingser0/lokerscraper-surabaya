@@ -50,7 +50,7 @@ func (s *SejutaCitaScraper) FetchJobs() ([]model.Job, error) {
 		if err != nil {
 			continue
 		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+		req.Header.Set("User-Agent", DefaultUserAgent)
 		req.Header.Set("Accept", "application/json")
 
 		resp, err := s.DoRequest(req)

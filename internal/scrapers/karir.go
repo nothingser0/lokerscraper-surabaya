@@ -55,7 +55,7 @@ func (s *KarirScraper) FetchJobs() ([]model.Job, error) {
 		if err != nil {
 			continue
 		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+		req.Header.Set("User-Agent", DefaultUserAgent)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("Origin", "https://karir.com")

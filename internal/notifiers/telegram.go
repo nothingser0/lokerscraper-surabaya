@@ -63,7 +63,7 @@ func SendTelegramMessage(botToken, chatID, text string) bool {
 			backoff *= 2
 			continue
 		}
-		defer resp.Body.Close()
+		resp.Body.Close()
 
 		if resp.StatusCode == 200 {
 			return true

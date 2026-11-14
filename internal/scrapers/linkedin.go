@@ -42,13 +42,16 @@ func (s *LinkedInScraper) fetchJobDetail(rawID string) (string, *string, *string
 	if err != nil {
 		return "", nil, nil
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("User-Agent", DefaultUserAgent)
 
 	resp, err := s.DoRequest(req)
-	if err != nil || resp.StatusCode != 200 {
+	if err != nil {
 		return "", nil, nil
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return "", nil, nil
+	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
@@ -100,7 +103,7 @@ func (s *LinkedInScraper) FetchJobs() ([]model.Job, error) {
 		if err != nil {
 			continue
 		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+		req.Header.Set("User-Agent", DefaultUserAgent)
 		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
 		resp, err := s.DoRequest(req)
