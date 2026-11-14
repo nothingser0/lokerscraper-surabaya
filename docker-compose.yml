@@ -1,5 +1,6 @@
 services:
   job-scraper:
+    image: ghcr.io/nothingser0/lokerscraper-surabaya:latest
     build: .
     container_name: lokerscraper-surabaya
     restart: unless-stopped
