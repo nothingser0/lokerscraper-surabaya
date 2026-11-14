@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html"
 	"log"
-	"net/http"
 	"time"
 
 	"lokerscraper-surabaya/internal/model"
@@ -51,11 +50,10 @@ func SendTelegramMessage(botToken, chatID, text string) bool {
 		return false
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
 	retries := 0
 	backoff := 1 * time.Second
 	for retries <= 3 {
-		resp, err := client.Post(url, "application/json", bytes.NewBuffer(data))
+		resp, err := notifyHTTPClient.Post(url, "application/json", bytes.NewBuffer(data))
 		if err != nil {
 			log.Printf("[Telegram] Request error: %v", err)
 			time.Sleep(backoff)

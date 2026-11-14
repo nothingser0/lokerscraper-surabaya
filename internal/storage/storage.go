@@ -140,8 +140,8 @@ func (s *StorageService) QueryJobs(keyword, source string, days *int, limit, off
 	}
 
 	if source != "" {
-		whereClauses = append(whereClauses, "LOWER(source) = ?")
-		params = append(params, strings.ToLower(source))
+		whereClauses = append(whereClauses, "source = ? COLLATE NOCASE")
+		params = append(params, source)
 	}
 
 	if days != nil && *days > 0 {
@@ -512,23 +512,20 @@ func (s *StorageService) GetStatsCounts() (int, map[string]int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var total int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM jobs").Scan(&total); err != nil {
-		return 0, nil, err
-	}
-
 	rows, err := s.db.Query("SELECT source, COUNT(*) FROM jobs GROUP BY source")
 	if err != nil {
-		return total, nil, err
+		return 0, nil, err
 	}
 	defer rows.Close()
 
+	total := 0
 	counts := make(map[string]int)
 	for rows.Next() {
 		var src string
 		var c int
 		if err := rows.Scan(&src, &c); err == nil {
 			counts[src] = c
+			total += c
 		}
 	}
 	return total, counts, nil

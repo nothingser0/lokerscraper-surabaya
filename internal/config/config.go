@@ -18,8 +18,6 @@ type Config struct {
 	TelegramBotToken       string
 	TelegramChatID         string
 	TelegramErrorChatID    string
-	DeepLAPIKey            string
-	DeepLAPIURL            string
 	ScrapeIntervalHours    int
 	ScrapeIntervalMinHours int
 	ScrapeIntervalMaxHours int
@@ -129,8 +127,6 @@ func LoadConfig() *Config {
 		TelegramBotToken:       os.Getenv("TELEGRAM_BOT_TOKEN"),
 		TelegramChatID:         os.Getenv("TELEGRAM_CHAT_ID"),
 		TelegramErrorChatID:    os.Getenv("TELEGRAM_ERROR_CHAT_ID"),
-		DeepLAPIKey:            os.Getenv("DEEPL_API_KEY"),
-		DeepLAPIURL:            os.Getenv("DEEPL_API_URL"),
 		ScrapeIntervalHours:    getInt("SCRAPE_INTERVAL_HOURS", 6),
 		ScrapeIntervalMinHours: getInt("SCRAPE_INTERVAL_MIN_HOURS", 0),
 		ScrapeIntervalMaxHours: getInt("SCRAPE_INTERVAL_MAX_HOURS", 0),
@@ -145,10 +141,6 @@ func LoadConfig() *Config {
 		LogsDir:   logsDir,
 		LogFile:   filepath.Join(logsDir, "scraper.log"),
 		StaticDir: staticDir,
-	}
-
-	if cfg.DeepLAPIURL == "" {
-		cfg.DeepLAPIURL = "https://api-free.deepl.com/v2/translate"
 	}
 
 	AppConfig = cfg

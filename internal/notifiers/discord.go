@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"strings"
 	"time"
 
@@ -178,7 +177,6 @@ func JobToDiscordEmbed(job model.Job) DiscordEmbed {
 }
 
 func SendDiscordPayload(webhookURL string, payload DiscordPayload) bool {
-	client := &http.Client{Timeout: 10 * time.Second}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return false
@@ -187,7 +185,7 @@ func SendDiscordPayload(webhookURL string, payload DiscordPayload) bool {
 	retries := 0
 	backoff := 1 * time.Second
 	for retries <= 3 {
-		resp, err := client.Post(webhookURL, "application/json", bytes.NewBuffer(data))
+		resp, err := notifyHTTPClient.Post(webhookURL, "application/json", bytes.NewBuffer(data))
 		if err != nil {
 			log.Printf("[Discord] Request error: %v", err)
 			time.Sleep(backoff)

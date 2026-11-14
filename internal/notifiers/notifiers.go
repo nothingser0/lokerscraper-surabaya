@@ -2,12 +2,17 @@ package notifiers
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"lokerscraper-surabaya/internal/config"
 	"lokerscraper-surabaya/internal/model"
 )
+
+var notifyHTTPClient = &http.Client{
+	Timeout: 10 * time.Second,
+}
 
 func getDiscordWebhookURLs(cfg *config.Config) []string {
 	var urls []string
