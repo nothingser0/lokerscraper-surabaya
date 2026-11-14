@@ -2,16 +2,26 @@
 .github/
 .gitignore
 .gitattributes
+.env
+*.env.local
 README.md
+LICENSE
 docs/
 docs-ai/
 planning/
 deploy/
+tests/
 lokerscraper
 lokerscraper.exe
+*.exe
+*.test
+*.out
 
 data/
 logs/
 
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
+

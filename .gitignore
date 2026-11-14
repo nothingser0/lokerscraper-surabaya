@@ -1,3 +1,4 @@
+# Local AI & planning workspaces
 docs-ai/
 planning/
 .omo/
@@ -5,24 +6,25 @@ planning/
 .opencode/
 .sisyphus/
 
-__pycache__/
-*.py[cod]
-*.pyo
-.venv/
-venv/
-env/
-
+# Environment variables & secrets
 .env
 *.env.local
 
+# Go build binaries & test artifacts
 lokerscraper
 lokerscraper.exe
+*.exe
+*.test
+*.out
+coverage.txt
 
+# Runtime data & logs
 data/
 logs/
 
+# OS & Editor metadata
 .DS_Store
 Thumbs.db
-
 .vscode/
 .idea/
+
