@@ -43,7 +43,7 @@ func (s *SejutaCitaScraper) FetchJobs() ([]model.Job, error) {
 	}
 
 	for _, kw := range s.cfg.Keywords {
-		apiURL := fmt.Sprintf("https://api.sejutacita.id/v1/explore-job/job?cityIds%%5B0%%5D=265&published=true&limit=20&q=%s",
+		apiURL := fmt.Sprintf("https://api.sejutacita.id/v1/explore-job/job?cityIds%%5B0%%5D=265&published=true&limit=20&search=%s",
 			url.QueryEscape(kw))
 
 		req, err := http.NewRequest("GET", apiURL, nil)

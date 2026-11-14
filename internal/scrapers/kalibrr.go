@@ -43,7 +43,7 @@ func (s *KalibrrScraper) FetchJobs() ([]model.Job, error) {
 	}
 
 	for _, kw := range s.cfg.Keywords {
-		apiURL := fmt.Sprintf("https://www.kalibrr.com/kjs/job_board/search?keyword=%s&location=%s&limit=20&offset=0",
+		apiURL := fmt.Sprintf("https://www.kalibrr.com/kjs/job_board/search?text=%s&location=%s&limit=20&offset=0",
 			url.QueryEscape(kw), url.QueryEscape(defaultLoc))
 
 		req, err := http.NewRequest("GET", apiURL, nil)

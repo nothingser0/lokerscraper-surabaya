@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -38,9 +37,8 @@ func (s *TechInAsiaScraper) FetchJobs() ([]model.Job, error) {
 	var scrapedJobs []model.Job
 	seenJobIDs := make(map[string]bool)
 
-	for _, kw := range s.cfg.Keywords {
-		apiURL := fmt.Sprintf("https://www.techinasia.com/api/2.0/job-postings?query=%s&country_name=Indonesia&page=1&per_page=20",
-			url.QueryEscape(kw))
+	for page := 1; page <= 2; page++ {
+		apiURL := fmt.Sprintf("https://www.techinasia.com/api/2.0/job-postings?country_name=Indonesia&page=%d&per_page=30", page)
 
 		req, err := http.NewRequest("GET", apiURL, nil)
 		if err != nil {
@@ -52,7 +50,7 @@ func (s *TechInAsiaScraper) FetchJobs() ([]model.Job, error) {
 
 		resp, err := s.DoRequest(req)
 		if err != nil {
-			log.Printf("[TechInAsia] Request error for keyword %s: %v", kw, err)
+			log.Printf("[TechInAsia] Request error for page %d: %v", page, err)
 			continue
 		}
 		if resp.StatusCode != 200 {

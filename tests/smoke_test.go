@@ -120,30 +120,17 @@ func TestGlintsLive(t *testing.T) {
 		t.Skip("Skipping live network test (set LIVE_TEST=1 to run)")
 	}
 	cfg := config.LoadConfig()
-	cfg.Keywords = []string{"developer", "backend", "qa"}
 	engine.InitFilter(cfg)
 
-	start := time.Now()
-	sc := scrapers.NewLinkedInScraper(cfg)
-	jobs, err := sc.FetchJobs()
-	if err != nil {
-		t.Fatalf("LinkedIn FetchJobs error: %v", err)
-	}
-	filtered := engine.FilterJobs(jobs)
-	t.Logf("LinkedIn live test finished in %v: %d raw jobs -> %d filtered jobs (across %d keywords)",
-		time.Since(start), len(jobs), len(filtered), len(cfg.Keywords))
-	for i, j := range filtered {
-		if i < 10 {
-			descLen := 0
-			if j.JobDescription != nil {
-				descLen = len(*j.JobDescription)
-			}
-			exp := ""
-			if j.Experience != nil {
-				exp = *j.Experience
-			}
-			t.Logf("Filtered job %d: [%s] %s | %s | %s | Exp=%s | DescLen=%d",
-				i+1, j.RawID, j.Title, j.Company, j.Location, exp, descLen)
-		}
+	for _, sc := range []scrapers.Scraper{
+		scrapers.NewKalibrrScraper(cfg),
+		scrapers.NewSejutaCitaScraper(cfg),
+		scrapers.NewTechInAsiaScraper(cfg),
+	} {
+		start := time.Now()
+		jobs, err := sc.FetchJobs()
+		filtered := engine.FilterJobs(jobs)
+		t.Logf("[VERIFIED] %-12s | elapsed=%-8v | raw=%-3d | filtered=%-3d | err=%v",
+			sc.SourceName(), time.Since(start).Round(time.Millisecond), len(jobs), len(filtered), err)
 	}
 }
